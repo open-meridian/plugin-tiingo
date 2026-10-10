@@ -154,10 +154,10 @@ preview:
 	@$(DOCKER) build $(SDK_CONTEXT) -f Dockerfile.check --target test -t $(CHECK) . >/dev/null 2>&1 \
 		|| { echo "preview FAILED to build" >&2; exit 1; }
 	@mkdir -p preview
-	@for page in connection datasets; do \
+	@for page in connection datasets datasets-search; do \
 		docker run --rm $(CHECK) python -m tiingo.preview $$page >preview/$$page.html || exit 1; \
 	done
-	@echo "preview: preview/connection.html, preview/datasets.html"
+	@echo "preview: preview/connection.html, preview/datasets.html, preview/datasets-search.html"
 	@if [ -n "$(SHOTS)" ]; then \
 		[ -d "$(KIT_DIST)" ] || { echo "preview FAILED: no kit at $(KIT_DIST); set KIT_DIST to a meridian-ui checkout's dist/" >&2; exit 1; }; \
 		mkdir -p "$(SHOTS)"; \

@@ -39,6 +39,8 @@ pages = meridian.Pages(TITLE, templates=Path(__file__).parent / "templates", kit
 CONNECTION = "/"
 DATASETS = "/datasets"
 SHOWN_WANTS = 3
+#: The longest search the Datasets tab reads.
+MOST_QUERY = 100
 _LABELS = {"tiingo_api_token": "API token"}
 
 _held: dict[str, Feed] = {}
@@ -190,6 +192,13 @@ def _day(value: str) -> str:
     return date.fromisoformat(value).strftime("%a %d %b") if value else ""
 
 
+def matching(query: str, *texts: str) -> bool:
+    """Whether every word of a search is in one of `texts`, case aside."""
+    words = query.lower().split()
+    held = " ".join(texts).lower()
+    return all(word in held for word in words)
+
+
 pages.environment.filters["moment"] = _moment
 pages.environment.filters["day"] = _day
 
@@ -229,9 +238,14 @@ async def connection(request: meridian.Request) -> meridian.Response:
 async def datasets(request: meridian.Request) -> meridian.Response:
     status, feed = _status()
     data = datasets_read(status, feed)
+    # A browser's search narrows the rows drawn; a tool answers them all.
+    query = request.query.get("q", "").strip()[:MOST_QUERY]
+    shown = [f for f in data.funds if matching(query, f.ticker, f.name, f.at_tiingo)]
     return pages.answer(
         "datasets.html",
         data,
+        query=query,
+        shown=shown,
         state=_state(status),
         checked_at=_iso(status.checked_at),
         shown_wants=data.wants[:SHOWN_WANTS],

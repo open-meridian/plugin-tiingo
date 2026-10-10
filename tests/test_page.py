@@ -91,3 +91,11 @@ def test_before_anything(tmp_path: Path) -> None:
     page_module._held.clear()
     assert "Waiting for the API token" in PageClient(pages).get(CONNECTION, "admin").text
     assert "No fund listed" in PageClient(pages).get(DATASETS, "admin").text
+
+
+def test_the_funds_are_searched(client: PageClient) -> None:
+    text = client.get(DATASETS, "admin", q="vanguard growth").text
+    assert 'type="search"' in text and 'data-ticker="VIGIX"' in text
+    assert 'data-ticker="VOO"' not in text and "1 of 3" in text
+    assert "No fund matches" in client.get(DATASETS, "admin", q="bond").text
+    assert len(client.call_tool("read_datasets").data["funds"]) == 3

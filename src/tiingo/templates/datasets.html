@@ -28,16 +28,24 @@
 </section>
 <section class="panel">
 {% if data.funds %}
+<div class="panel-body"><form class="filters" method="get" role="search">
+<input type="search" name="q" value="{{ query }}" placeholder="Search funds" aria-label="Search funds by ticker or name">
+<button>Search</button>{% if query %} <a href="?">Clear</a>{% endif %}
+<span class="muted">{{ shown | length }} of {{ data.funds | length }}</span></form></div>
+{% if shown %}
 <om-pager>
 <table class="one-line">
 <thead><tr><th>Ticker</th><th class="wide-only">Name</th><th>At Tiingo</th><th>Instrument</th><th class="wide-only">Latest recorded</th><th class="more"><span class="visually-hidden">Details</span></th></tr></thead>
 <tbody>
-{% for f in data.funds %}
+{% for f in shown %}
 <tr data-ticker="{{ f.ticker }}" data-served="{{ 'yes' if f.served else 'no' }}"><td><code>{{ f.ticker }}</code></td><td class="wide-only">{{ f.name or "" }}</td><td>{% if f.served %}<span class="badge good">{{ f.at_tiingo }}</span>{% else %}<span class="badge{% if f.at_tiingo != 'mutual fund' %} warn{% endif %}">{{ f.at_tiingo }}</span>{% endif %}</td><td>{% if f.instrument_id %}<code>{{ f.instrument_id }}</code>{% elif f.miss %}<span class="badge warn">{{ f.miss }}</span>{% else %}<span class="faint">not served</span>{% endif %}</td><td class="wide-only">{{ f.latest_recorded | day if f.latest_recorded else "" }}</td><td class="more"><details class="row-detail" name="funds"><summary aria-label="Details of {{ f.ticker }}">…</summary><div class="row-detail-pop"><h3>{{ f.ticker }}</h3><dl><dt>Name</dt><dd>{{ f.name or "not known" }}</dd><dt>At Tiingo</dt><dd>{{ f.at_tiingo }}{% if not f.served and f.at_tiingo.startswith("not a mutual fund") %}: not recorded here; its closes are the equity datasets'{% endif %}</dd><dt>The deployment's record</dt><dd>{% if f.instrument_id %}<code>{{ f.instrument_id }}</code>{% if f.from_setting %}, as the Funds setting names it{% else %}, by Tiingo's symbol{% endif %}{% elif f.miss %}None: {{ f.miss }}, reported missing; name it in the Funds setting, or complete it at the Instruments page{% else %}None{% endif %}</dd><dt>History from</dt><dd>{{ f.history_from or "not known" }}</dd><dt>Latest recorded</dt><dd>{{ f.latest_recorded or "nothing yet" }}</dd></dl></div></details></td></tr>
 {% endfor %}
 </tbody>
 </table>
 </om-pager>
+{% else %}
+<div class="empty-state"><strong>No fund matches "{{ query }}"</strong><p>Search by its ticker, its name, or what Tiingo says it is.</p></div>
+{% endif %}
 {% else %}
 <div class="empty-state"><strong>No fund listed</strong><p>Add each mutual fund to keep NAVs for in this plugin's Settings, under Funds.</p></div>
 {% endif %}
