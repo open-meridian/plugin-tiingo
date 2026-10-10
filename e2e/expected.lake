@@ -1,3 +1,4 @@
+row|tiingo:daily|price|10|VTSAX:2026-10-08|1|VTSAX|3||2026-10-08|0|false
 row|tiingo:daily|price|1|VIGIX:2026-09-30|1|VIGIX|3||2026-09-30|0|false
 row|tiingo:daily|price|2|VIGIX:2026-10-01|1|VIGIX|3||2026-10-01|1|false
 row|tiingo:daily|price|3|VIGIX:2026-10-02|1|VIGIX|3||2026-10-02|2|false
@@ -8,6 +9,8 @@ row|tiingo:daily|price|7|VIGIX:2026-10-08|1|VIGIX|3||2026-10-08|6|false
 row|tiingo:daily|price|8|VIGIX:2026-10-09|1|VIGIX|3||2026-10-09|7|false
 row|tiingo:daily|price|9|VIGIX:2026-09-22|1|VIGIX|3||2026-09-22|8|false
 want|tiingo:daily|answered|VIGIX|0
+want|tiingo:daily|answered|VTSAX|0
 want|tiingo:daily|asked|VIGIX|0
 want|tiingo:daily|asked|VIGIX|0
+want|tiingo:daily|asked|VTSAX|0
 want|tiingo:daily|declined|VIGIX|4

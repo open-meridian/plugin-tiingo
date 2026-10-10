@@ -39,6 +39,10 @@ never a NAV and never the token: **Connection** (`read_connection`) and
   token, entered by you in the dashboard. Sent only to Tiingo, in a header.
 - **Funds** (`funds`), a table: each fund's ticker, and optionally the
   deployment's record for it (the one your custodian's positions name).
+  A fund your book already holds from a custodian needs no row: when a
+  reader asks for its NAV, the plugin reads its record, and where the
+  record carries a ticker Tiingo files as a mutual fund, serves it from then
+  on, up to the same 100 funds in all.
 - **Synthetic mode**, on a development deployment: invented responses, no
   token.
 
@@ -66,16 +70,19 @@ limit was reached, the plugin waits and tries again.
     make ci-local                                  # lint, tests, plugin check, image, e2e: the pre-push gate
     make preview SHOTS=<dir>                       # each page in a browser with the kit, at 1440x900 and 390x844
 
-`make e2e` runs it on core's plugin harness (core b1b8420) beside a reading
-plugin, Tiingo's API unreachable: waiting with no token, then in synthetic
-mode with VIGIX, VOO and NOSUCH listed, VIGIX alone served, its NAVs read
-back, a past day wanted and recorded, a day with no NAV yet declined, both
-tools answering what the pages show, and a new container recording nothing
-twice.
+`make e2e` runs it on core's plugin harness (core e4a14fc, contract v18 as
+ruled 2026-10-10) beside a reading plugin, Tiingo's API unreachable: waiting
+with no token, then in synthetic mode with VIGIX, VOO and NOSUCH listed,
+VIGIX alone served, its NAVs read back, a past day wanted and recorded, a
+day with no NAV yet declined, VTSAX -- listed nowhere, known only by a
+custodian's CUSIP and symbol -- read from its record and its NAV recorded
+for the reader, both tools answering what the pages show, and a new
+container recording nothing twice.
 
 **The `dgm` suite.** `tests/test_suite.py` runs the SDK's suite on the
-plugin's own conversion. A NAV-only source presents five of its twelve
-cases; the other seven ask for a close, a bar, an FX rate, a stablecoin or a
+plugin's own conversion. A NAV-only source presents six of its thirteen
+cases, a fund known only by another source's identifiers among them; the
+other seven ask for a close, a bar, an FX rate, a stablecoin or a
 venue, which a fund's NAV is not, and the SDK's runner lets only a
 closed-list case be not presented, so by its rule the plugin is short of the
 suite and not verified; the test holds it to exactly that.

@@ -2,8 +2,8 @@
 present mapped to the plugin's own conversion of synthetic Tiingo responses.
 
 The plugin serves one thing: mutual funds' net asset values. It presents
-five of the suite's twelve cases. Seven ask for what it never records, and it
-has no conversion for them, so they have no producer here:
+six of the suite's thirteen cases. Seven ask for what it never records, and
+it has no conversion for them, so they have no producer here:
 
 - `a-daily-close`, `the-forming-day-restated` and `an-fx-rate` each expect a
   price of kind `close`; a fund's price is its NAV, kind `nav`, and the
@@ -15,9 +15,14 @@ has no conversion for them, so they have no producer here:
 - `a-venue-resolved` and `a-venue-not-held`: a fund strikes its NAV on no
   venue, so the dataset declares none and no row names one.
 
+`a-subject-another-source-resolved` (contract v18 as ruled 2026-10-10) is
+presented: a fund the book holds from a custodian, its record carrying the
+custodian's symbol and a CUSIP, is read (W3.6) and its NAV recorded against
+the want.
+
 The SDK's runner lets only a closed-list case be "not presented", and none of
 these is one, so by its rule the plugin is short of the suite and not
-verified: the test holds it to exactly the five it presents, and to the
+verified: the test holds it to exactly the six it presents, and to the
 seven failing for want of a producer, never for a wrong answer. Whether a
 source may say it records no closes, bars, tokens or venues is a question
 for the suite's owner (meridian-design matrix/boundaries/suites/dgm.yaml),
@@ -38,7 +43,7 @@ from tiingo.feed import Feed
 from tiingo.raw import RawStore
 from tiingo.settings import Config, Fund
 
-from conftest import AT, DATASET, want
+from conftest import AT, CUSTODIAN, CUSTODIANS, DATASET, held, want
 
 NOT_PRESENTED = {
     "a-daily-close": "a fund's price is its NAV, kind nav: no close is recorded",
@@ -85,6 +90,22 @@ def producers(tmp: Path) -> dict[str, Callable[[Recorder], Awaitable[None]]]:
 
         return produce
 
+    async def elsewhere(recorder: Recorder) -> None:
+        # VTSAX as a custodian's book holds it, by its CUSIP and the
+        # custodian's symbol: the record read, Tiingo's symbol joined to it.
+        held(recorder, {CUSTODIAN: CUSTODIANS})
+        recorder.answer(
+            "ResolveIdentifier",
+            lambda p: ops.ResolveIdentifierResult(
+                found=True,
+                instrument_id=CUSTODIAN if len(p.identifiers) == 2 else "LCL-VIGIX",
+            ),
+        )
+        feed = work(recorder)
+        message = want("w-3", [CUSTODIAN], day="2026-10-08").message
+        recorder.answer("ObservationsWanted", lambda _: message)
+        await recorder.receive(observations_wanted=feed.on_want)
+
     async def withdrawn(recorder: Recorder) -> None:
         _resolving(recorder)
         feed = work(recorder)
@@ -97,6 +118,7 @@ def producers(tmp: Path) -> dict[str, Callable[[Recorder], Awaitable[None]]]:
         "an-exact-price": navs_read,
         "an-asset-that-does-not-resolve": two_records,
         "a-want-recorded-against": wanted(want("w-1", ["LCL-VIGIX"], day="2026-09-22").message),
+        "a-subject-another-source-resolved": elsewhere,
         "a-subject-declined": wanted(want("w-2", ["LCL-elsewhere"], day="2026-10-08").message),
         "a-standing-want-withdrawn": withdrawn,
     }

@@ -17,6 +17,13 @@ record in this deployment, pick it in the row's **Instrument** column, so the
 NAV values the position you hold; otherwise the plugin finds or makes the
 record by Tiingo's symbol.
 
+A fund your custodian's positions name needs no row at all for a reader to
+value it: when the reader asks for its NAV, the plugin reads the record, and
+where the record carries a ticker Tiingo files as a mutual fund, it records
+the NAV and keeps the fund current from then on. Datasets lists such a fund
+as read from its record. Funds and these count together toward the plugin's
+100.
+
 ## Its dataset
 
 On the deployment's **Data sources** page (deployment admins):

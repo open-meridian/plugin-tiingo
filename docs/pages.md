@@ -15,6 +15,6 @@ and how many responses are kept.
 
 What the plugin serves: its one dataset as the deployment's catalogue lists
 it, with the licence it declares; the standing wants it keeps current and the
-last wants it answered; and each fund listed, one line each: what Tiingo says
-it is, the deployment's record for it or why there is none, and the latest
-day recorded. A row's `…` opens its details.
+last wants it answered; and each fund listed, or read from the record a
+reader's want named, one line each: what Tiingo says it is, the deployment's
+record for it or why there is none, and the latest day recorded. A row's `…` opens its details.

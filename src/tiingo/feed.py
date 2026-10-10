@@ -12,6 +12,19 @@ where it names one; otherwise its ticker resolved as Tiingo's symbol
 (`symbol` VIGIX from source `tiingo`, W3.1), with what Tiingo states of it --
 a fund, in US dollars, its name -- and a miss reported with why (W3.2).
 
+**Records another source named** (W3.6, a dgm's from contract v18 as ruled
+2026-10-10). A record the Funds row names is read: one the deployment does
+not hold is not served, and one carrying no Tiingo symbol gains it, reported
+beside an identifier it carries (W3.1) -- matching another record is two
+records for one fund, reported for a person to merge (W3.2, W3.13). A
+subject the lake wants that no listed fund is -- a fund the book holds from
+a custodian, known by the custodian's symbol and a CUSIP -- is read the same
+way: where it carries a symbol Tiingo files as a mutual fund, and no listed
+fund is served under that ticker already, it is served from then on beside
+the funds listed, up to the same limit, and Tiingo's symbol joined to it. On
+a runtime that grants a dgm no read of a record, the record a row names is
+taken as named and a wanted one declined, as before the ruling.
+
 **Push.** At start, when the settings change and every six hours, each
 served fund's prices for the last ten days are read and recorded, in batches
 of at most 500. Each NAV read again names the response it was first read
@@ -43,7 +56,7 @@ from meridian.plugin.v1 import operations_pb2 as ops
 from .convert import NEW_YORK, Nav, navs, to_prices
 from .declaration import DAILY
 from .raw import RawStore
-from .settings import Config, Fund
+from .settings import MOST_FUNDS, Config, Fund
 from .vendor import (
     MUTUAL_FUNDS,
     Fetched,
@@ -87,6 +100,8 @@ class FundState:
     instrument_id: str = ""
     miss: str = ""
     latest: str = ""
+    #: Read from its record when the lake wanted it, not listed in Funds.
+    wanted: bool = False
 
     @property
     def mutual_fund(self) -> bool:
@@ -122,6 +137,10 @@ class Status:
     restated: int = 0
     unchanged: int = 0
     funds: dict[str, FundState] = field(default_factory=dict)
+    #: Funds served for a record the lake wanted, by that record's ID.
+    read: dict[str, FundState] = field(default_factory=dict)
+    #: Whether the deployment answers this plugin's ResolveInstrument.
+    reads_instruments: bool = True
     unconverted: list[str] = field(default_factory=list)
     wants: list[Answered] = field(default_factory=list)
     standing: dict[str, tuple[int, datetime]] = field(default_factory=dict)
@@ -160,6 +179,9 @@ class Feed:
         self.vendor = vendor
         self.status = Status(started_at=now(), mode=vendor.mode if vendor else "waiting")
         self._keyed: tuple[bool, str] | None = None
+        #: Wanted records found to be a second record of a fund served,
+        #: reported once each.
+        self._paired: set[str] = set()
 
     @property
     def dataset(self) -> str:
@@ -172,7 +194,7 @@ class Feed:
             self._keyed = keyed
             self.vendor = tiingo(config.synthetic, config.token, self.now)
             self.status.error = ""
-            for fund in self.status.funds.values():
+            for fund in self.every_fund():
                 fund.found, fund.latest = "", ""
         self.status.mode = self.vendor.mode if self.vendor is not None else "waiting"
         self.status.token_set = bool(config.token)
@@ -185,6 +207,12 @@ class Feed:
                 state.instrument_id, state.miss = "", ""
             state.configured = listed.instrument_id
             self.status.funds[listed.ticker] = state
+        # A fund listed now is served as its row says, never twice.
+        self.status.read = {
+            subject: fund
+            for subject, fund in self.status.read.items()
+            if fund.ticker not in self.status.funds
+        }
 
     def configured(self, funds: Iterable[Fund]) -> None:
         """Set the funds alone, for a test or a preview."""
@@ -195,6 +223,10 @@ class Feed:
                 synthetic=self.vendor is not None and self.vendor.mode == "synthetic",
             )
         )
+
+    def every_fund(self) -> list[FundState]:
+        """The funds listed, then those read for a want."""
+        return [*self.status.funds.values(), *self.status.read.values()]
 
     # ── Reading Tiingo ──────────────────────────────────────────────────
 
@@ -232,7 +264,13 @@ class Feed:
         if fund.instrument_id:
             return
         if fund.configured:
+            read = await self.read_record(fund.configured)
+            if read is not None and not read.found:
+                fund.miss = "record_not_found"
+                return
             fund.instrument_id, fund.miss = fund.configured, ""
+            if read is not None:
+                await self.join(fund, read.instrument)
             return
         identifier = ops.Identifier(scheme="symbol", value=fund.ticker, source=SOURCE)
         found = await self.plugin.resolve_identifier(
@@ -253,6 +291,89 @@ class Feed:
             reason=reason,
             observed_at_ns=_ns(self.now()),
         )
+
+    # ── The deployment's records (W3.6, W3.1, W3.2) ─────────────────────
+
+    async def read_record(self, instrument_id: str) -> ops.ResolveInstrumentResult | None:
+        """What the deployment's record is; None where this dgm may not read
+        it, on a runtime from before the ruling of 2026-10-10 (asked once)."""
+        if not self.status.reads_instruments:
+            return None
+        try:
+            found: ops.ResolveInstrumentResult = await self.plugin.resolve_instrument(
+                instrument_id=instrument_id, as_of_ns=_ns(self.now())
+            )
+        except meridian.NotGranted:
+            log.warning("this dgm may not read an instrument's record: serving the funds listed")
+            self.status.reads_instruments = False
+            return None
+        return found
+
+    async def join(self, fund: FundState, record: ops.InstrumentRecord) -> None:
+        """Report Tiingo's symbol beside an identifier the record carries
+        (W3.1), where it carries none of Tiingo's: one identifier in common
+        is one security, so the record gains Tiingo's code. Matching another
+        record, or none, is a miss (W3.2), and the record stays the subject."""
+        held = list(record.identifiers)
+        if any(i.scheme == "symbol" and i.source == SOURCE for i in held):
+            return
+        symbols = [i for i in held if i.scheme == "symbol" and i.value.upper() == fund.ticker]
+        given = (symbols or held or [None])[0]
+        if given is None:
+            return
+        own = ops.Identifier(scheme="symbol", value=fund.ticker, source=SOURCE)
+        given = ops.Identifier(scheme=given.scheme, value=given.value, source=given.source)
+        found = await self.plugin.resolve_identifier(
+            identifiers=[own, given],
+            stated_asset_class="fund",
+            stated_currency="USD",
+            stated_description=fund.name,
+        )
+        if found.found and found.instrument_id == fund.instrument_id:
+            return
+        reason = ops.MISS_REASON_AMBIGUOUS
+        if not found.found and found.miss_reason:
+            reason = found.miss_reason
+        await self.plugin.report_missing_instrument(
+            source=SOURCE,
+            asset_class="fund",
+            identifiers=[own, given],
+            reason=reason,
+            observed_at_ns=_ns(self.now()),
+        )
+
+    async def read_wanted(self, subject: str) -> FundState | None:
+        """The fund a wanted subject no listed fund is, read from its record:
+        served where its symbol is a mutual fund at Tiingo that no fund is
+        served under already; None where it is not one, or not readable."""
+        held = self.status.read.get(subject)
+        if held is not None:
+            return held if held.served else None
+        if subject in self._paired:
+            return None
+        if len(self.status.funds) + len(self.status.read) >= MOST_FUNDS:
+            return None
+        read = await self.read_record(subject)
+        if read is None or not read.found:
+            return None
+        symbols = [i for i in read.instrument.identifiers if i.scheme == "symbol" and i.value]
+        symbols.sort(key=lambda i: i.source != SOURCE)
+        if not symbols:
+            return None
+        fund = FundState(symbols[0].value.strip().upper(), instrument_id=subject, wanted=True)
+        if any(f.ticker == fund.ticker and f.served for f in self.every_fund()):
+            # Two records for one fund: Tiingo's symbol joined to this one
+            # reports the pair for a person to merge (W3.13); its rows stay
+            # under the record that is served, never keyed twice.
+            self._paired.add(subject)
+            await self.join(fund, read.instrument)
+            return None
+        await self.meta(fund)
+        self.status.read[subject] = fund
+        if not fund.served:
+            return None
+        await self.join(fund, read.instrument)
+        return fund
 
     # ── Recording ───────────────────────────────────────────────────────
 
@@ -307,7 +428,7 @@ class Feed:
         total = Outcome()
         today = self.vendor.today()
         try:
-            for fund in list(self.status.funds.values()):
+            for fund in self.every_fund():
                 if not await self.prepare(fund):
                     continue
                 path = prices_path(fund.ticker, today - timedelta(days=LOOKBACK_DAYS), today)
@@ -333,7 +454,7 @@ class Feed:
     # ── Wants ───────────────────────────────────────────────────────────
 
     def covered(self) -> dict[str, FundState]:
-        return {f.instrument_id: f for f in self.status.funds.values() if f.served}
+        return {f.instrument_id: f for f in self.every_fund() if f.served}
 
     def _days(self, want: ops.ObservationsWantedEvent) -> list[date]:
         if want.business_date:
@@ -382,6 +503,14 @@ class Feed:
                     self.status.error = str(failed)
                     break
         covered = self.covered()
+        for subject in [s for s in dict.fromkeys(asked) if s not in covered]:
+            try:
+                found = await self.read_wanted(subject)
+            except (Unreachable, OverBudget) as failed:
+                self.status.error = str(failed)
+                break
+            if found is not None:
+                covered[subject] = found
         await self._decline(
             want.want_id, [s for s in asked if s not in covered], "not_covered", declined
         )

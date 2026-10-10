@@ -21,8 +21,14 @@ sends Tiingo's API nowhere, and synthetic mode reads invented responses.
 6. Wanted: 22 September, not recorded, is asked of the plugin and recorded
    against the want; 12 October, which has no NAV yet, is declined
    `source_silent`.
-7. `store lake` is e2e/expected.lake, VIGIX's subject named by its ticker.
-8. A new container: it reads the funds again and records nothing twice.
+7. Another source's record: VTSAX, listed in no Funds row and known to the
+   deployment only as a custodian's book holds it (its CUSIP and the
+   custodian's symbol), is wanted; the plugin reads the record (W3.6, a
+   dgm's from contract v18 as ruled 2026-10-10), finds a mutual fund at
+   Tiingo and records its NAV against the want: 147.4, keyed VTSAX's way;
+   Datasets lists it, read from the record.
+8. `store lake` is e2e/expected.lake, each subject named by its ticker.
+9. A new container: it reads the funds again and records nothing twice.
 """
 
 import json
@@ -168,7 +174,7 @@ def run():
     runner("licence", DATASET, "kept=true", "retention_days=0", "derived_use=true", "display=true",
            "personal_use=true", "note=Tiingo's free plan: one person's use.")
     runner("entitle", "--instance", "reader", DATASET, "note=The e2e's reader reads the NAVs.")
-    runner("grant", "--instance", "reader", "--level", "read")
+    runner("grant", "--instance", "reader", "--level", "read", "--role", "reporting")
 
     # 5. Read back.
     read = until(60, lambda: (lambda r: r if r["prices"] else None)(prices(vigix, "2026-10-08")),
@@ -189,8 +195,21 @@ def run():
     prices(vigix, "2026-10-12")
     until(90, lambda: "|declined|" in store_lake(), "step 6, 12 October was not declined")
 
-    # 7. The lake.
-    names = {vigix: "VIGIX"}
+    # 7. Another source's record, read and its NAV recorded.
+    vtsax = json.loads(page("reader", "read", "/resolve"))["vtsax"]
+    must(vtsax and vtsax != vigix, f"step 7, the custodian's VTSAX is its own record: {vtsax}")
+    prices(vtsax, "2026-10-08")
+    held = until(90, lambda: (lambda r: r if r["prices"] else None)(prices(vtsax, "2026-10-08")),
+                 "step 7, VTSAX's NAV for the custodian's record was not recorded")["prices"]
+    must(len(held) == 1 and held[0]["amount"] == "147.4" and held[0]["kind"] == "PRICE_KIND_NAV"
+         and held[0]["row_key"] == "VTSAX:2026-10-08" and held[0]["subject"] == vtsax,
+         f"step 7, VTSAX's NAV for another source's record: {held}")
+    read = [f for f in call(read_datasets)["funds"] if f["ticker"] == "VTSAX"]
+    must(len(read) == 1 and read[0]["served"] and read[0]["from_want"]
+         and read[0]["instrument_id"] == vtsax, f"step 7, Datasets lists VTSAX, read: {read}")
+
+    # 8. The lake.
+    names = {vigix: "VIGIX", vtsax: "VTSAX"}
     got = named(store_lake(), names)
     with open(".e2e/lake", "w", encoding="utf-8") as kept:
         kept.write(got)
@@ -198,16 +217,16 @@ def run():
         expected = expected_file.read()
     if got != expected:
         diff = subprocess.run(["diff", "-u", "e2e/expected.lake", ".e2e/lake"], capture_output=True, text=True)
-        raise Failed(f"step 7, the lake is not e2e/expected.lake:\n{diff.stdout[-3000:]}")
+        raise Failed(f"step 8, the lake is not e2e/expected.lake:\n{diff.stdout[-3000:]}")
 
-    # 8. A new container records nothing twice.
+    # 9. A new container records nothing twice.
     compose("up", "-d", "--no-deps", "--force-recreate", "tiingo")
     runner("ready")
     until(120, lambda: "VIGIX: 0 NAVs recorded, 0 restated, 8 unchanged"
           in compose("logs", "--no-color", "tiingo").stdout,
-          "step 8, the new container's check was not answered unchanged")
+          "step 9, the new container's check was not answered unchanged")
     again = named(store_lake(), names)
-    must(again == got, "step 8, the new container recorded something twice")
+    must(again == got, "step 9, the new container recorded something twice")
 
     rows = got.count("row|")
     print(f"e2e OK in {int(time.time() - started)}s on the plugin harness, no Tiingo token: waiting "
@@ -216,7 +235,8 @@ def run():
           f"what the pages show, the token said unset and never shown; core listing {DATASET} as "
           f"declared, one person's terms; licensed and entitled; VIGIX's NAV on 8 October read back "
           f"at 245.55 in dollars, kind nav; 22 September wanted and recorded, 12 October declined "
-          f"source silent; `store lake` as e2e/expected.lake ({rows} rows); and a new container "
+          f"source silent; VTSAX, known only by a custodian's CUSIP and symbol, read from its "
+          f"record and its NAV recorded against the want (147.4); `store lake` as e2e/expected.lake ({rows} rows); and a new container "
           f"recording nothing twice")
 
 

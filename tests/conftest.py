@@ -19,6 +19,31 @@ AT = datetime(2026, 10, 10, 11, 0, tzinfo=UTC)
 INSTANCE = "tiingo"
 DATASET = f"{INSTANCE}:daily"
 FUNDS = (Fund("VIGIX"), Fund("VOO"), Fund("NOSUCH"))
+#: A custodian's record of VTSAX, as the book holds it: its CUSIP and the
+#: custodian's symbol, never resolved by Tiingo.
+CUSTODIAN = "LCL-custodian-vtsax"
+CUSTODIANS = [
+    ops.Identifier(scheme="cusip", value="922908728"),
+    ops.Identifier(scheme="symbol", value="VTSAX", source="snaptrade"),
+]
+
+
+def held(recorder: Recorder, records: dict[str, list[ops.Identifier]]) -> None:
+    """ResolveInstrument answering the deployment's `records`, by ID; any
+    other ID is no record it holds."""
+
+    def answer(params: ops.ResolveInstrumentParams) -> ops.ResolveInstrumentResult:
+        identifiers = records.get(params.instrument_id)
+        if identifiers is None:
+            return ops.ResolveInstrumentResult(found=False)
+        return ops.ResolveInstrumentResult(
+            found=True,
+            instrument=ops.InstrumentRecord(
+                instrument_id=params.instrument_id, identifiers=identifiers
+            ),
+        )
+
+    recorder.answer("ResolveInstrument", answer)
 
 
 def feed(

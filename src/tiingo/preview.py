@@ -9,7 +9,9 @@ against the synthetic responses committed under synthetic/ (every value
 invented), at 11:00 UTC on 10 October 2026, with three funds listed: VIGIX,
 a mutual fund, resolved and its last days recorded; VOO, an ETF, not served;
 NOSUCH, which Tiingo does not know. A want for 22 September is answered, one
-for 12 October declined (no NAV yet), and a standing want kept current.
+for 12 October declined (no NAV yet), and a standing want kept current; and
+VTSAX, listed nowhere, wanted by a custodian's record (its CUSIP and the
+custodian's symbol), read from it and served.
 Each page links the kit where the dashboard serves it: served beside the kit
 it is styled (`make preview SHOTS=...` checks each in a browser); opened on
 its own it is the page without the kit, unstyled, which works too.
@@ -36,6 +38,8 @@ PAGES = {"connection": CONNECTION, "datasets": DATASETS, "datasets-search": DATA
 #: What the Datasets tab's search is shown with, as `datasets-search`.
 SEARCHED = "vanguard"
 FUNDS = (Fund("VIGIX"), Fund("VOO"), Fund("NOSUCH"))
+#: A custodian's record of VTSAX, which no Funds row lists.
+CUSTODIAN = "LCL-custodian-vtsax"
 
 
 def _want(want_id: str, subject: str, day: str = "", standing: bool = False) -> Heard:  # type: ignore[type-arg]
@@ -55,13 +59,33 @@ def _want(want_id: str, subject: str, day: str = "", standing: bool = False) -> 
 
 async def synthetic_feed() -> Feed:
     """A feed as synthetic mode leaves it, on the recorder."""
-    feed = Feed(Recorder("tiingo"), RawStore(), now=lambda: AT)
+    recorder = Recorder("tiingo")
+    custodians = [
+        ops.Identifier(scheme="cusip", value="922908728"),
+        ops.Identifier(scheme="symbol", value="VTSAX", source="snaptrade"),
+    ]
+    recorder.answer(
+        "ResolveInstrument",
+        lambda p: ops.ResolveInstrumentResult(
+            found=p.instrument_id == CUSTODIAN,
+            instrument=ops.InstrumentRecord(instrument_id=CUSTODIAN, identifiers=custodians),
+        ),
+    )
+    recorder.answer(
+        "ResolveIdentifier",
+        lambda p: ops.ResolveIdentifierResult(
+            found=True,
+            instrument_id=CUSTODIAN if len(p.identifiers) == 2 else f"LCL-{p.identifiers[0].value}",
+        ),
+    )
+    feed = Feed(recorder, RawStore(), now=lambda: AT)
     feed.configure(Config(funds=FUNDS, synthetic=True))
     await feed.check()
     vigix = feed.status.funds["VIGIX"].instrument_id
     await feed.on_want(_want("want-0922", vigix, "2026-09-22"))
     await feed.on_want(_want("want-1012", vigix, "2026-10-12"))
     await feed.on_want(_want("want-standing", vigix, standing=True))
+    await feed.on_want(_want("want-vtsax", CUSTODIAN, "2026-10-08"))
     return feed
 
 

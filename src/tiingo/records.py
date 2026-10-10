@@ -63,6 +63,8 @@ class FundRead:
     served: bool
     instrument_id: str
     from_setting: bool
+    #: Not listed: read from its record when the lake wanted it.
+    from_want: bool
     miss: str
     history_from: str
     latest_recorded: str

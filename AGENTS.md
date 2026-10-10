@@ -49,8 +49,8 @@ deployment admin approves it. Its plan is meridian-design's
 - **Every row names its raw record,** and a NAV read again names the response
   it was first read from at that value, so the lake answers it unchanged.
 - **The suite.** `tests/test_suite.py` runs `meridian.suites.run("dgm", ...)`
-  on the plugin's own conversion. A NAV-only source presents five of its
-  twelve cases; the seven it cannot (closes, a bar, an FX rate, a stablecoin,
+  on the plugin's own conversion. A NAV-only source presents six of its
+  thirteen cases; the seven it cannot (closes, a bar, an FX rate, a stablecoin,
   venues) fail for want of a producer, which the test holds exactly. Never
   write a producer that invents what Tiingo does not state for a fund.
 

@@ -13,7 +13,7 @@ from tiingo import page as page_module
 from tiingo.page import CONNECTION, DATASETS, hold, pages
 from tiingo.settings import Config, Fund
 
-from conftest import feed, want
+from conftest import CUSTODIAN, CUSTODIANS, feed, held, want
 
 
 @pytest.fixture
@@ -52,6 +52,26 @@ def test_datasets_lists_each_fund_and_what_tiingo_says_it_is(client: PageClient)
     assert 'data-ticker="VOO" data-served="no"' in text and "not a mutual fund (NYSE)" in text
     assert 'data-ticker="NOSUCH" data-served="no"' in text and "not found" in text
     assert "1 standing" in text and "2026-09-22: 1 recorded" in text
+
+
+def test_datasets_lists_a_fund_read_from_the_record_a_want_named(tmp_path: Path) -> None:
+    work = feed(tmp_path)
+    held(work.plugin, {CUSTODIAN: CUSTODIANS})
+
+    async def run() -> None:
+        await work.check()
+        await work.on_want(want("w-vtsax", [CUSTODIAN], day="2026-10-08"))
+
+    asyncio.run(run())
+    hold(work)
+    client = PageClient(pages)
+    text = client.get(DATASETS, "admin").text
+    assert 'data-ticker="VTSAX" data-served="yes"' in text and CUSTODIAN in text
+    assert "read from the record when the lake wanted it" in text
+    funds = client.call_tool("read_datasets").data["funds"]
+    vtsax = next(f for f in funds if f["ticker"] == "VTSAX")
+    assert vtsax["from_want"] and not vtsax["from_setting"] and vtsax["instrument_id"] == CUSTODIAN
+    client.assert_no_account_data("147.4")
 
 
 def test_the_tools_answer_what_the_pages_show(client: PageClient) -> None:

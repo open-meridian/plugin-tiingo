@@ -11,7 +11,11 @@ It answers its page as JSON, so the harness's runner can read it
       business date, kind, amount as text and the instrument it is in; and
       what the lake left unanswered, with why;
   /datasets
-      the datasets it may read.
+      the datasets it may read;
+  /resolve
+      the deployment's record of VTSAX as a custodian's book holds it, by its
+      CUSIP and the custodian's symbol alone (W3.1): the reader holds
+      `custody` beside `reporting` only to name it so.
 
 Standard library and the SDK only; every amount stays text, never a float.
 """
@@ -28,6 +32,11 @@ from meridian.plugin.v1 import operations_pb2 as ops
 
 PORT = 8088
 LOOP = asyncio.new_event_loop()
+#: VTSAX as a custodian's book holds it, never resolved by Tiingo's plugin.
+CUSTODIANS = [
+    ops.Identifier(scheme="cusip", value="922908728"),
+    ops.Identifier(scheme="symbol", value="VTSAX", source="e2e-custodian"),
+]
 
 
 def price_json(price):
@@ -70,7 +79,15 @@ class Reader:
             ],
         }
 
+    async def resolve(self):
+        found = await self.plugin.resolve_identifier(identifiers=CUSTODIANS)
+        if not found.instrument_id:
+            raise RuntimeError(f"the custodian's VTSAX did not resolve: {found}")
+        return {"vtsax": found.instrument_id}
+
     async def answer(self, path, query):
+        if path == "/resolve":
+            return await self.resolve()
         if path == "/prices":
             return await self.prices(query)
         if path == "/datasets":
@@ -104,7 +121,7 @@ def serve(reader):
 
 async def main():
     plugin = await meridian.connect(
-        interface=Interface(PORT, "The e2e's reader", pages=[Page("/", "Prices", levels=["read"])]),
+        interface=Interface(PORT, "The e2e's reader", pages=[Page("/", "Prices", levels=["read"], roles=["reporting"])]),
     )
     print(f"reader registered as {plugin.identity.instance_id}", flush=True)
     threading.Thread(target=serve, args=(Reader(plugin),), daemon=True).start()

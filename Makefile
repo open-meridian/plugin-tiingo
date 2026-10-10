@@ -26,19 +26,20 @@ PLUGIN_CHECK := meridian-tiingo-plugin-check
 MERIDIAN_VERSION := $(shell sed -n 's/^ *MERIDIAN_VERSION: *\([0-9][0-9.]*\).*/\1/p' .github/workflows/check.yaml)
 
 # The released runtime `make e2e` proves the plugin against, by tag and
-# digest -- core's main at b1b8420, contract v18, the first with the lake --
+# digest -- core's main at e4a14fc, contract v18 as ruled 2026-10-10 --
 # and core's plugin harness published with it, by the same commit's tag and
 # its digest, since a harness and a runtime of different commits may
 # disagree about the dashboard's pages. Moved together by a deliberate
 # commit, when this plugin chooses. `make e2e RUNTIME_IMAGE=...:latest
 # HARNESS_IMAGE=...:latest` tries a newer core; e2e-latest.yaml does that
 # weekly.
-RUNTIME_IMAGE ?= ghcr.io/open-meridian/meridian-runtime:b1b8420@sha256:422a28cec7ba6b3856ac43b9871cea9fbc74f69ea86ce5737ee49f4c29dcc77a
-HARNESS_IMAGE ?= ghcr.io/open-meridian/meridian-harness:b1b8420@sha256:e03b0f06c273504ca8c2e893c8279b6ac3d91ee9b67ead9de28b35c760e731c3
+RUNTIME_IMAGE ?= ghcr.io/open-meridian/meridian-runtime:e4a14fc@sha256:44c919b2d0d67fd873ea4829643f029bacca691ae0c2e85246bfc920a27850b3
+HARNESS_IMAGE ?= ghcr.io/open-meridian/meridian-harness:e4a14fc@sha256:c1d816676ae2163cf03fa984f82105353f29921d2aca823e7eb7b5717e86b7ab
 # The harness's two plugins: this one, as instance tiingo, holding dgm as
 # pyproject.toml declares; and the reader, a reporting plugin the e2e runs
-# from e2e/reader.py in the same image.
-PLUGINS := [{"instance": "tiingo", "image": "$(IMAGE)", "roles": ["dgm"]}, {"instance": "reader", "image": "$(IMAGE)", "roles": ["reporting"]}]
+# from e2e/reader.py in the same image, holding custody beside it only to
+# name a custodian's record.
+PLUGINS := [{"instance": "tiingo", "image": "$(IMAGE)", "roles": ["dgm"]}, {"instance": "reader", "image": "$(IMAGE)", "roles": ["custody", "reporting"]}]
 
 # The kit's built files, where `make preview SHOTS=...` serves them beside
 # the pages for the browser: a meridian-ui checkout's dist/.

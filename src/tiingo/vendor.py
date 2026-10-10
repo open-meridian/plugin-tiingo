@@ -25,9 +25,9 @@ SDK carries none (the boundaries spec), and two calls need nothing more.
 
 `SyntheticTiingo` answers the same calls from the responses under
 synthetic/: shaped on Tiingo's documented responses, every value invented,
-for VIGIX (a mutual fund) and VOO (an ETF), and 404 for any other ticker. No
-real Tiingo response is committed: the data is licensed for one person's
-use.
+for VIGIX and VTSAX (mutual funds) and VOO (an ETF), and 404 for any other
+ticker. No real Tiingo response is committed: the data is licensed for one
+person's use.
 """
 
 from __future__ import annotations
@@ -205,7 +205,7 @@ class SyntheticTiingo:
         held = resources.files(__package__).joinpath("synthetic")
         self._meta: dict[str, bytes] = {}
         self._prices: dict[str, list[dict[str, Any]]] = {}
-        for ticker in ("vigix", "voo"):
+        for ticker in ("vigix", "vtsax", "voo"):
             self._meta[ticker] = held.joinpath(f"{ticker}-meta.json").read_bytes()
             self._prices[ticker] = json.loads(
                 held.joinpath(f"{ticker}-prices.json").read_bytes(), parse_float=str

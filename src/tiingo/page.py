@@ -12,9 +12,10 @@ So:
   it keeps, and the responses kept.
 - **Datasets** (`/datasets`): the one dataset the catalogue declares; the
   standing wants it keeps current and the last wants answered; and each fund
-  listed, one line each: what Tiingo says it is, whether it is served, the
-  deployment's record for it or why there is none, its history's start and
-  the latest day recorded -- never a NAV -- paged by the kit's om-pager.
+  listed, or read from the record a want named, one line each: what Tiingo
+  says it is, whether it is served, the deployment's record for it or why
+  there is none, its history's start and the latest day recorded -- never a
+  NAV -- paged by the kit's om-pager.
 """
 
 from __future__ import annotations
@@ -28,6 +29,7 @@ import meridian
 from . import records
 from .declaration import CADENCE, DAILY_DATASET, VENDOR, mode_name
 from .feed import Feed, FundState, Status
+from .settings import MOST_FUNDS
 from .vendor import BASE, FREE_PLAN, MOST_A_DAY, MOST_AN_HOUR, MUTUAL_FUNDS
 
 TITLE = "Tiingo"
@@ -155,7 +157,8 @@ def datasets_read(status: Status, feed: Feed | None) -> records.DatasetsRead:
         ),
         entitled_at_vendor=(
             f"Whatever the token's plan allows; the plugin keeps inside the free plan's "
-            f"{FREE_PLAN}, and reads only the funds listed."
+            f"{FREE_PLAN}, and reads only the funds listed and those a want names by a "
+            f"record carrying a ticker, {MOST_FUNDS} in all."
         ),
         funds=[
             records.FundRead(
@@ -165,11 +168,15 @@ def datasets_read(status: Status, feed: Feed | None) -> records.DatasetsRead:
                 served=f.served,
                 instrument_id=f.instrument_id,
                 from_setting=bool(f.configured),
+                from_want=f.wanted,
                 miss=f.miss.replace("_", " "),
                 history_from=f.start,
                 latest_recorded=f.latest,
             )
-            for f in sorted(status.funds.values(), key=lambda f: f.ticker)
+            for f in sorted(
+                [*status.funds.values(), *status.read.values()],
+                key=lambda f: (f.ticker, f.wanted),
+            )
         ],
         unconverted=list(status.unconverted),
         standing=[
