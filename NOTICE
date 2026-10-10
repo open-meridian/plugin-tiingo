@@ -1,0 +1,10 @@
+meridian-tiingo
+Copyright 2026 Societal Lab Inc.
+
+Licensed under the Apache License, Version 2.0. See LICENSE.
+
+Tiingo is a trademark of its owner. This project is not affiliated with or
+endorsed by Tiingo; it calls Tiingo's API with a token the person who holds
+the Tiingo account supplies, under that person's own agreement with Tiingo.
+The responses under src/tiingo/synthetic/ are synthetic, shaped on Tiingo's
+documented responses, every value invented.

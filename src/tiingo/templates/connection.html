@@ -1,0 +1,29 @@
+{#- Connection, at admin: how the plugin reaches Tiingo, and how the last
+    check went. The token is said to be set or not, never shown; no NAV. -#}
+{% extends "meridian/base.html" %}
+{% import "_kit.html" as kit with context %}
+{% block status %}{{ kit.status(data.state, data.said, detail, data.checked_at) }}{% endblock %}
+{% block content %}
+{% if data.mode == "waiting" %}<div class="notice warn" role="status">Waiting for {{ data.waiting_for | join(", ") or "the API token" }}: set it in this plugin's Settings. Nothing is read until then.</div>{% endif %}
+{% if data.error %}<div class="notice bad" role="alert">The last check failed: {{ data.error }}</div>{% endif %}
+{% if data.mode == "synthetic" %}<div class="notice warn" role="status">Synthetic mode: invented responses committed with the plugin, not Tiingo.</div>{% endif %}
+<div class="tiles">
+{{ kit.tile("Mode", data.mode | capitalize, "no token needed" if data.mode == "synthetic" else "") }}
+{{ kit.tile("API token", "Set" if data.token_set else "Not set", "never shown") }}
+{{ kit.tile("Requests", data.requests_last_hour ~ " this hour", data.requests_last_day ~ " today") }}
+{{ kit.tile("Last checked", data.checked_at[11:16] ~ " UTC" if data.checked_at else "Not yet", data.checked_at[:10] if data.checked_at else "") }}
+</div>
+<section class="panel">
+<div class="panel-body"><h2>Tiingo's end-of-day prices</h2>
+<p class="muted">Mutual funds' net asset values, after midnight New York time.</p></div>
+<table class="one-line">
+<tbody>
+<tr><th scope="row">Source</th><td>{{ data.source }}</td><td class="more"></td></tr>
+<tr><th scope="row">Token</th><td>{% if data.token_set %}Set in this plugin's Settings; sent only to Tiingo, in a header{% else %}Not set{% endif %}</td><td class="more"></td></tr>
+<tr><th scope="row">Limits</th><td>{{ data.limits }}</td><td class="more"><details class="row-detail" name="connection"><summary aria-label="Details of the limits">…</summary><div class="row-detail-pop"><h3>Limits</h3><p>{{ data.limits }}</p><p>{{ data.requests_last_hour }} requests in the last hour, {{ data.requests_last_day }} in the last day.</p></div></details></td></tr>
+<tr><th scope="row">Responses kept</th><td>{{ data.responses_kept }}{% if data.kept_for %}, {{ data.kept_for }}{% endif %}</td><td class="more"><details class="row-detail" name="connection"><summary aria-label="Details of the responses kept">…</summary><div class="row-detail-pop"><h3>Responses kept</h3><p>Each of Tiingo's responses is kept as received, without the token, before anything is read from it, and every NAV names the one it came from. {{ data.responses_kept }} kept{% if data.kept_for %}, {{ data.kept_for }}{% endif %}.</p></div></details></td></tr>
+<tr><th scope="row">Requests</th><td>{{ data.pages_read }} since the plugin started</td><td class="more"></td></tr>
+</tbody>
+</table>
+</section>
+{% endblock %}

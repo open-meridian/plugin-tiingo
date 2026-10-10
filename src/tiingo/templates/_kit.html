@@ -1,0 +1,24 @@
+{# The pieces both pages are built from, each the kit's pattern
+   (meridian-ui's README, "Patterns"), with what shows where the kit is not
+   served inside it. #}
+
+{# The head's status (om-status), marked data-om-header so a framed page
+   hands it to the dashboard. Its words show without the kit's script. #}
+{% macro status(state, said, detail="", at="") -%}
+<om-status data-om-header state="{{ state }}" label="{{ said }}"
+{%- if detail %} detail="{{ detail }}"{% endif %}
+{%- if at %} at="{{ at }}" at-label="Last checked"{% endif %}>{{ said }}.
+{%- if detail %} {{ detail }}{% if not detail.endswith(".") %}.{% endif %}{% endif %}
+{%- if at %} Last checked {{ at | moment }}.{% endif %}</om-status>
+{%- endmacro %}
+
+{# A tile: its label, its figure and a line under it. #}
+{% macro tile(label, value, delta="", ink="") -%}
+<div class="panel tile"><div class="tile-label">{{ label }}</div><div class="tile-value">{{ value }}</div>
+{%- if delta %}<div class="tile-delta{% if ink %} {{ ink }}{% endif %}">{{ delta }}</div>{% endif %}</div>
+{%- endmacro %}
+
+{# A moment in a cell or a sentence. #}
+{% macro when(value, absent="not yet") -%}
+{% if value %}<time datetime="{{ value }}">{{ value | moment }}</time>{% else %}<span class="faint">{{ absent }}</span>{% endif %}
+{%- endmacro %}
