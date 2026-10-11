@@ -46,7 +46,7 @@ from importlib import resources
 from typing import Any, Protocol
 
 BASE = "https://api.tiingo.com"
-USER_AGENT = "meridian-tiingo (+https://github.com/open-meridian/meridian-tiingo)"
+USER_AGENT = "meridian-tiingo (+https://github.com/open-meridian/plugin-tiingo)"
 #: The least time between two requests, in seconds.
 SPACING = 2.0
 TIMEOUT = 30.0
