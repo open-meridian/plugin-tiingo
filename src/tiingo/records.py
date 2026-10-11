@@ -1,9 +1,11 @@
 """The typed records the pages answer, for a person's page and an agent's
-tool alike (contract v12; spec/a-deployment-serves-its-mcp): the Connection
-tab is `read_connection`, the Datasets tab `read_datasets`, each answering
-what its page shows, as data.
+tool alike (contract v12; spec/a-deployment-serves-its-mcp): the data role's
+common records (`meridian.roles.data`, spec/plugin-pages-follow-their-role),
+each extended with Tiingo's own fields. The Connection tab is
+`read_connection`, the Datasets tab `read_datasets`, each answering what its
+page shows, as data, under the role's names.
 
-A `dgm`'s pages show its connection and its datasets, never a price
+A data plugin's pages show its connection and its datasets, never a price
 (plans/the-lake-prices-the-book, ruled 2026-10-03), and never a secret: the
 token is said to be set or not, and nothing more.
 """
@@ -12,43 +14,48 @@ from __future__ import annotations
 
 from dataclasses import dataclass, field
 
+from meridian.roles import data
+
 
 @dataclass(frozen=True)
-class ConnectionRead:
-    """How the plugin reaches Tiingo, and how it last went."""
+class ConnectionRead(data.ConnectionRead):
+    """Connection's common fields, then Tiingo's: the head's status and what
+    it means, the source asked, the last check, the requests made in the
+    last hour and day against the limits it keeps, the responses kept and
+    where."""
 
-    #: `live`, `synthetic`, or `waiting` (no token, and not synthetic).
-    mode: str
     #: The head's status: `ok`, `busy`, `warn` or `error`, and what it means.
-    state: str
-    said: str
-    #: Whether the API token is set: never its value.
-    token_set: bool
-    #: The settings the plugin waits for, by their labels.
-    waiting_for: list[str]
-    source: str
-    checked_at: str
-    error: str
-    #: Requests made in the last hour and day, against the limits it keeps.
-    requests_last_hour: int
-    requests_last_day: int
-    limits: str
-    pages_read: int
-    responses_kept: int
-    kept_for: str
+    state: str = ""
+    said: str = ""
+    source: str = ""
+    checked_at: str = ""
+    requests_last_hour: int = 0
+    requests_last_day: int = 0
+    responses_kept: int = 0
+    kept_for: str = ""
 
 
 @dataclass(frozen=True)
-class DatasetRead:
-    dataset: str
-    vendor: str
-    data_types: list[str]
-    modes: list[str]
-    cadence: str
-    day: str
-    history: str
-    venue: str
-    licence: str
+class Served(data.Served):
+    """The one dataset as "Served" shows it, then Tiingo's: its history and
+    venue (none: a fund strikes its NAV on no venue), and what it restated
+    and kept unchanged since the plugin started."""
+
+    history: str = ""
+    venue: str = ""
+    restated: int = 0
+    unchanged: int = 0
+
+
+@dataclass(frozen=True)
+class Want(data.Want):
+    """One want as "Wants" shows it, then Tiingo's: its ID, when, and whether
+    it stands; declined, by reason."""
+
+    want_id: str = ""
+    at: str = ""
+    standing: bool = False
+    declined_as: str = ""
 
 
 @dataclass(frozen=True)
@@ -71,25 +78,12 @@ class FundRead:
 
 
 @dataclass(frozen=True)
-class WantRead:
-    want_id: str
-    asked: str
-    subjects: int
-    recorded: int
-    declined: str
-    at: str
-    standing: bool
+class DatasetsRead(data.DatasetsRead):
+    """Datasets' common fields, then Tiingo's: each fund listed or read for a
+    want, and the days Tiingo gave that could not be read. Its rows are
+    Tiingo's, each extending the role's."""
 
-
-@dataclass(frozen=True)
-class DatasetsRead:
-    """What the plugin serves: its dataset, the funds listed, the standing
-    wants it keeps current and the wants it answered lately."""
-
-    dataset: DatasetRead
-    #: What the token entitles the plugin to at Tiingo, as far as it can say.
-    entitled_at_vendor: str
+    served: list[Served] = field(default_factory=list)  # type: ignore[assignment]
+    wants: list[Want] = field(default_factory=list)  # type: ignore[assignment]
     funds: list[FundRead] = field(default_factory=list)
     unconverted: list[str] = field(default_factory=list)
-    standing: list[WantRead] = field(default_factory=list)
-    wants: list[WantRead] = field(default_factory=list)

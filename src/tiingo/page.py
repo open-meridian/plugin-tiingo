@@ -1,45 +1,53 @@
-"""The plugin's pages, under Manage alone: Connection and Datasets, each
-also a read tool for agents on the deployment's MCP (`read_connection`,
-`read_datasets`; plans/the-lake-prices-the-book, "v18's names").
+"""The plugin's pages, under Manage alone: the data role's common pages
+(spec/plugin-pages-follow-their-role), Connection and Datasets, in its
+order, each also a read tool for agents on the deployment's MCP under the
+role's names (`read_connection`, `read_datasets`). Each record is the
+role's (`meridian.roles.data`), extended with Tiingo's fields; each template
+is the role's, with Tiingo's nuance at its blocks only.
 
-A `dgm` shows its connectivity, its data subscriptions and how its
+A data plugin shows its connectivity, its data subscriptions and how its
 entitlements resolve, and no market data (the product owner, 2026-10-03).
 So:
 
-- **Connection** (`/`): how the plugin reaches Tiingo -- live, synthetic, or
-  waiting for its token (said to be set or not, never shown) -- the last
-  check and why it failed, the requests made against the free plan's limits
-  it keeps, and the responses kept.
-- **Datasets** (`/datasets`): the one dataset the catalogue declares; the
-  standing wants it keeps current and the last wants answered; and each fund
-  listed, or read from the record a want named, one line each: what Tiingo
-  says it is, whether it is served, the deployment's record for it or why
-  there is none, its history's start and the latest day recorded -- never a
-  NAV -- paged by the kit's om-pager.
+- **Connection** (`/`): "Key" -- the mode (Live, Sample data or No key),
+  the API token set or not (never shown), what Tiingo serves the token;
+  "Limits and use" -- the free plan's limits it keeps, its requests, the
+  last error; "Stream": it does not stream. Then Tiingo's rows: the last
+  check, the requests this hour and today, the responses kept.
+- **Datasets** (`/datasets`): "Served" -- the one dataset, as the catalogue
+  declares it, licensed or not; "Wants" -- the standing wants it keeps
+  current and the last wants answered; "Subjects". Then Tiingo's section:
+  each fund listed, or read from the record a want named, one line each:
+  what Tiingo says it is, whether it is served, the deployment's record for
+  it or why there is none, the latest day recorded -- never a NAV --
+  searched and paged by the kit's om-pager.
 """
 
 from __future__ import annotations
 
+from dataclasses import replace
 from datetime import UTC, date, datetime
 from pathlib import Path
 from typing import Any
 
 import meridian
+from meridian.roles import data
 
 from . import records
-from .declaration import CADENCE, DAILY_DATASET, VENDOR, mode_name
+from .declaration import DAILY_DATASET, mode_name
 from .feed import Feed, FundState, Status
 from .settings import MOST_FUNDS
 from .vendor import BASE, FREE_PLAN, MOST_A_DAY, MOST_AN_HOUR, MUTUAL_FUNDS
 
 TITLE = "Tiingo"
-# The kit these pages were built against: 0.10.0, every page one screen.
-KIT = "0.10.0"
+#: The kit these pages are built on: 0.12.0's "Facts" and "Next step".
+KIT = "0.12.0"
 
 pages = meridian.Pages(TITLE, templates=Path(__file__).parent / "templates", kit=KIT)
 
 CONNECTION = "/"
 DATASETS = "/datasets"
+#: The wants a browser is shown, the latest; the tool answers all.
 SHOWN_WANTS = 3
 #: The longest search the Datasets tab reads.
 MOST_QUERY = 100
@@ -64,11 +72,11 @@ def _iso(moment: datetime | None) -> str:
 def _state(status: Status) -> tuple[str, str, str]:
     misses = [f for f in status.funds.values() if f.mutual_fund and f.miss]
     if status.mode == "waiting":
-        return "warn", "Waiting for the API token", "Set it in the plugin's Settings."
+        return "warn", "No key", "Set the API token in the plugin's Settings."
     if status.error and status.checked_at is not None and not status.recorded:
-        return "error", "Tiingo was not read", status.error
+        return "error", "Not answering", status.error
     if status.error:
-        return "warn", "The last check failed", status.error
+        return "warn", "Answering", status.error
     if status.checked_at is None:
         return "busy", "Reading Tiingo", ""
     if not status.funds:
@@ -76,7 +84,13 @@ def _state(status: Status) -> tuple[str, str, str]:
     if misses:
         tickers = ", ".join(sorted(f.ticker for f in misses))
         return "warn", f"{len(misses)} not resolved", tickers
-    return "ok", "Tiingo read", ""
+    if status.mode == "synthetic":
+        return "ok", "Sample data", ""
+    return "ok", "Answering", ""
+
+
+def _mode(status: Status) -> str:
+    return {"synthetic": "Sample data", "waiting": "No key"}.get(status.mode, "Live")
 
 
 def connection_read(status: Status, feed: Feed | None) -> records.ConnectionRead:
@@ -88,27 +102,37 @@ def connection_read(status: Status, feed: Feed | None) -> records.ConnectionRead
         window = "in the storage the deployment grants, as its responses settings say"
     elif feed is not None:
         window = "in a directory of the plugin's own: this deployment grants no storage"
+    answered = status.mode == "synthetic" or (
+        status.checked_at is not None and not (status.error and not status.recorded)
+    )
     return records.ConnectionRead(
-        mode=status.mode,
+        mode=_mode(status),
+        credentials=[data.Credential("API token", status.token_set)],
+        entitled_at_vendor=(
+            f"Mutual funds' daily NAVs, as far as the token's plan allows; the plugin keeps "
+            f"inside the free plan's {FREE_PLAN}"
+            if answered and status.mode != "waiting"
+            else ""
+        ),
+        limit=(
+            f"Tiingo's free plan: {FREE_PLAN}; the plugin asks at most {MOST_AN_HOUR} an "
+            f"hour and {MOST_A_DAY} a day, one every two seconds"
+        ),
+        calls=status.fetches,
+        rate_limited=status.rate_limited,
+        last_call_at=_iso(status.checked_at),
+        last_error=status.error,
+        sessions=None,
         state=state,
         said=said,
-        token_set=status.token_set,
-        waiting_for=[_LABELS.get(name, name) for name in status.missing],
         source=(
-            "Synthetic responses committed with the plugin, every value invented"
+            "Recorded responses committed with the plugin, every value invented"
             if status.mode == "synthetic"
             else f"{BASE}/tiingo/daily, end-of-day prices"
         ),
         checked_at=_iso(status.checked_at),
-        error=status.error,
         requests_last_hour=used[0],
         requests_last_day=used[1],
-        limits=(
-            f"Tiingo's free plan: {FREE_PLAN}. The plugin asks one request at a time, at most "
-            f"one every two seconds, and at most {MOST_AN_HOUR} an hour and {MOST_A_DAY} a day; "
-            "it reads each listed fund every six hours."
-        ),
-        pages_read=status.fetches,
         responses_kept=len(kept),
         kept_for=window,
     )
@@ -124,42 +148,68 @@ def _at_tiingo(fund: FundState) -> str:
     return f"not a mutual fund ({fund.exchange or 'no exchange'})"
 
 
-def _want(answered: Any) -> records.WantRead:
+def _want(answered: Any) -> records.Want:
     declined = ", ".join(f"{n} {reason.replace('_', ' ')}" for reason, n in answered.declined)
-    return records.WantRead(
-        answered.want_id,
-        answered.asked,
-        answered.subjects,
-        answered.recorded,
-        declined,
-        _iso(answered.at),
-        answered.standing,
+    return records.Want(
+        dataset="",
+        asked=answered.asked,
+        subjects=answered.subjects,
+        recorded=answered.recorded,
+        declined=sum(n for _, n in answered.declined),
+        state="Answered, standing" if answered.standing else "Answered",
+        want_id=answered.want_id,
+        at=_iso(answered.at),
+        standing=answered.standing,
+        declined_as=declined,
     )
 
 
 def datasets_read(status: Status, feed: Feed | None) -> records.DatasetsRead:
     instance = feed.plugin.identity.instance_id if feed is not None else "tiingo"
     entry = DAILY_DATASET
+    dataset = f"{instance}:{entry.key}"
+    connection = connection_read(status, feed)
+    if connection.mode == "Sample data":
+        at_vendor = "Yes"
+    elif connection.mode == "No key" or not connection.entitled_at_vendor:
+        at_vendor = "Not asked yet"
+    else:
+        at_vendor = "Yes, as the token's plan allows"
+    served = [
+        records.Served(
+            dataset=dataset,
+            data="mutual funds' NAVs",
+            arrives=", ".join(mode_name(m) for m in entry.modes),
+            day="New York's, to 16:00",
+            default_terms="kept; personal use",
+            entitled_at_vendor=at_vendor,
+            recorded=status.recorded,
+            declined=status.declined,
+            last_recorded=_iso(status.last_recorded_at),
+            licensed=dataset in status.licensed,
+            history="each fund's own, from the date Tiingo's prices for it begin",
+            venue="none: a fund strikes its NAV on no venue",
+            restated=status.restated,
+            unchanged=status.unchanged,
+        )
+    ]
+    standing = [
+        records.Want(
+            dataset=dataset,
+            asked="nav",
+            subjects=n,
+            state="Kept current",
+            want_id=want_id,
+            at=_iso(since),
+            standing=True,
+        )
+        for want_id, (n, since) in status.standing.items()
+    ]
+    answered = [replace(_want(a), dataset=dataset) for a in status.wants]
     return records.DatasetsRead(
-        dataset=records.DatasetRead(
-            dataset=f"{instance}:{entry.key}",
-            vendor=VENDOR,
-            data_types=list(entry.data_types),
-            modes=[mode_name(m) for m in entry.modes],
-            cadence="daily" if entry.cadence == CADENCE else f"{entry.cadence} s",
-            day="New York's, ending at 16:00 (America/New_York, 16:00)",
-            history="Each fund's own, from the date Tiingo's prices for it begin",
-            venue="None: a fund strikes its NAV on no venue",
-            licence=(
-                "One person's terms: Tiingo's free and Power plans are for internal and "
-                "personal use, no redistribution; kept, used and shown to that person"
-            ),
-        ),
-        entitled_at_vendor=(
-            f"Whatever the token's plan allows; the plugin keeps inside the free plan's "
-            f"{FREE_PLAN}, and reads only the funds listed and those a want names by a "
-            f"record carrying a ticker, {MOST_FUNDS} in all."
-        ),
+        served=served,
+        wants=standing + answered,
+        reads_instruments=status.reads_instruments,
         funds=[
             records.FundRead(
                 ticker=f.ticker,
@@ -179,11 +229,34 @@ def datasets_read(status: Status, feed: Feed | None) -> records.DatasetsRead:
             )
         ],
         unconverted=list(status.unconverted),
-        standing=[
-            records.WantRead(want_id, "kept current", n, 0, "", _iso(since), True)
-            for want_id, (n, since) in status.standing.items()
-        ],
-        wants=[_want(a) for a in status.wants],
+    )
+
+
+def figures(status: Status, feed: Feed | None) -> list[meridian.Figure]:
+    """The data role's figures, in its order (`meridian.roles.data`); Tiingo
+    reports none of its own."""
+    read = connection_read(status, feed)
+    state, said, why = _state(status)
+    if read.mode in ("Sample data", "No key"):
+        connection: Any = read.mode
+    elif state == "error":
+        connection = meridian.Figure("", "Not answering", state="error", why=why[:200])
+    else:
+        connection = meridian.Figure(
+            "", "Answering", state="warn" if status.error else None, why=status.error[:200]
+        )
+    hour = read.requests_last_hour
+    return data.figures(
+        connection=connection,
+        entitled_at_vendor=None if read.mode == "No key" else "1 of 1 datasets",
+        stream="Does not stream",
+        last_recorded=status.last_recorded_at,
+        rate_use=meridian.Figure(
+            "",
+            f"{hour} of {MOST_AN_HOUR} an hour",
+            state="warn" if hour * 5 >= MOST_AN_HOUR * 4 else None,
+            why=f"{status.rate_limited} answered 429" if status.rate_limited else "",
+        ),
     )
 
 
@@ -217,10 +290,11 @@ pages.environment.filters["day"] = _day
     answers=records.ConnectionRead,
     name="read_connection",
     description=(
-        "How this plugin reaches Tiingo: live, synthetic, or waiting for its API token "
-        "(said to be set or not, never shown), the last check and why it failed if it did, "
-        "the requests made against the free plan's limits it keeps, and how many responses "
-        "are kept. No price."
+        "How this plugin reaches Tiingo, as every data plugin's Connection answers it: the "
+        "mode (Live, Sample data or No key), the API token set or not (never shown), what "
+        "Tiingo serves the token, the free plan's limits it keeps and its requests, the "
+        "last check and error; it does not stream. Then Tiingo's own: the source, the "
+        "requests this hour and today, and how many responses are kept. No price."
     ),
 )
 async def connection(request: meridian.Request) -> meridian.Response:
@@ -235,25 +309,29 @@ async def connection(request: meridian.Request) -> meridian.Response:
     answers=records.DatasetsRead,
     name="read_datasets",
     description=(
-        "What this plugin serves the lake: its one dataset as the catalogue declares it "
-        "(mutual funds' daily NAVs, New York's day ending at 16:00, one person's terms), each "
-        "fund listed with what Tiingo says it is, whether it is served, the deployment's "
-        "record for it or why there is none and the latest day recorded, the standing wants "
-        "it keeps current and the wants it answered lately. No NAV."
+        "What this plugin serves the lake, as every data plugin's Datasets answers it: its "
+        "one dataset as the catalogue declares it (mutual funds' daily NAVs, New York's "
+        "day ending at 16:00, one person's terms), whether a deployment admin has licensed "
+        "it, what it recorded and declined; the standing wants it keeps current and the "
+        "wants it answered; whether it may read an instrument's record. Then Tiingo's own: "
+        "each fund listed with what Tiingo says it is, whether it is served, the "
+        f"deployment's record for it or why there is none, up to {MOST_FUNDS}. No NAV."
     ),
 )
 async def datasets(request: meridian.Request) -> meridian.Response:
     status, feed = _status()
-    data = datasets_read(status, feed)
-    # A browser's search narrows the rows drawn; a tool answers them all.
+    read = datasets_read(status, feed)
+    # A browser's search narrows the funds drawn, and it is drawn the latest
+    # wants; a tool answers them all.
     query = request.query.get("q", "").strip()[:MOST_QUERY]
-    shown = [f for f in data.funds if matching(query, f.ticker, f.name, f.at_tiingo)]
+    shown = [f for f in read.funds if matching(query, f.ticker, f.name, f.at_tiingo)]
+    drawn = read if request.tool_name else replace(read, wants=read.wants[:SHOWN_WANTS])
     return pages.answer(
         "datasets.html",
-        data,
+        drawn,
         query=query,
         shown=shown,
         state=_state(status),
         checked_at=_iso(status.checked_at),
-        shown_wants=data.wants[:SHOWN_WANTS],
+        wants=len(read.wants),
     )

@@ -9,9 +9,14 @@
   ticker (`VIGIX`), and, where its ticker alone does not find it, the
   deployment's own record for it (an instrument column, picked by search):
   the record the custodian's positions already name, say.
-- **Synthetic mode** (`synthetic`), a developer's setting, SnapTrade's name
-  for the same thing: synthetic responses committed with the plugin in place
-  of Tiingo, with no token, for the e2e and for trying the plugin.
+- **Sample data** (`sample_data`, `meridian.sample_data`), a developer's
+  setting: recorded responses committed with the plugin, every value
+  invented, in place of Tiingo, with no token, for the e2e and for trying
+  the plugin. `synthetic` until 0.2.0.
+
+In the data role's order (spec/plugin-pages-follow-their-role): no
+`environment`, since Tiingo has one; the credential; the vendor's own (the
+Funds table); sample data last.
 
 The SDK declares the storage's two settings from the declaration's kind:
 `responses_window_days` (two years by default) and `responses_past_window`.
@@ -30,28 +35,29 @@ TOKEN = "tiingo_api_token"
 FUNDS = "funds"
 TICKER = "ticker"
 INSTRUMENT = "instrument"
-SYNTHETIC = "synthetic"
+SAMPLE_DATA = "sample_data"
 WINDOW = f"{RESPONSES}_window_days"
 PAST_WINDOW = f"{RESPONSES}_past_window"
 #: The most funds: a fifth of the free plan's 500 symbols a month.
 MOST_FUNDS = 100
 
-DECLARED = (
-    meridian.Setting(
-        TOKEN,
-        str,
+
+@meridian.settings
+class Declared:
+    """The settings as declared, in the data role's order: one typed class,
+    the SDK's form, which `connect` and the declaration register."""
+
+    tiingo_api_token: str = meridian.setting(
+        "API token",
         required=True,
         secret=True,
-        label="API token",
         description=(
             "From your Tiingo account's API page. Tiingo's free plan suffices for a few "
             "funds' daily NAVs; its terms are for your internal and personal use."
         ),
-    ),
-    meridian.Setting(
-        FUNDS,
-        list,
-        label="Funds",
+    )
+    funds: list[dict[str, str]] = meridian.setting(
+        "Funds",
         columns=(
             meridian.Column(
                 TICKER,
@@ -71,19 +77,13 @@ DECLARED = (
         ),
         most_rows=MOST_FUNDS,
         description="The mutual funds to keep daily net asset values for.",
-    ),
-    meridian.Setting(
-        SYNTHETIC,
-        bool,
-        label="Synthetic mode",
-        default=False,
-        developer=True,
-        description=(
-            "Serve synthetic Tiingo responses committed with the plugin, every value "
-            "invented, instead of calling Tiingo, to try it before any token exists."
-        ),
-    ),
-)
+    )
+    sample_data: bool = meridian.sample_data()
+
+
+DECLARED = Declared
+#: Each setting it declares, in its order.
+SETTINGS: tuple[meridian.Setting, ...] = Declared.declared()  # type: ignore[attr-defined]
 
 
 @dataclass(frozen=True)
@@ -98,15 +98,15 @@ class Fund:
 class Config:
     token: str = field(default="", repr=False)
     funds: tuple[Fund, ...] = ()
-    synthetic: bool = False
+    sample_data: bool = False
     window_days: int = DEFAULT_WINDOW_DAYS
     past_window: str = "kept"
     missing: tuple[str, ...] = ()
 
     @property
     def waiting(self) -> bool:
-        """Whether there is nothing to read with: no token, and not synthetic."""
-        return not self.synthetic and not self.token
+        """Whether there is nothing to read with: no token, and no sample data."""
+        return not self.sample_data and not self.token
 
 
 def config_from(values: Mapping[str, object], missing: Collection[str] = ()) -> Config:
@@ -123,7 +123,7 @@ def config_from(values: Mapping[str, object], missing: Collection[str] = ()) -> 
     return Config(
         token=token.strip() if isinstance(token, str) else "",
         funds=tuple(funds.values()),
-        synthetic=values.get(SYNTHETIC) is True,
+        sample_data=values.get(SAMPLE_DATA) is True,
         window_days=window if isinstance(window, int) and window > 0 else DEFAULT_WINDOW_DAYS,
         past_window=past if isinstance(past, str) and past else "kept",
         missing=tuple(sorted(missing)),

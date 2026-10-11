@@ -1,44 +1,30 @@
-{#- Datasets, at admin: what the plugin serves the lake -- its dataset, the
-    wants it keeps current, and each fund listed, with the deployment's
-    record for it. No NAV: prices are the reading roles'. -#}
-{% extends "meridian/base.html" %}
-{% import "_kit.html" as kit with context %}
-{% block status %}{{ kit.status(state[0], state[1], state[2], checked_at) }}{% endblock %}
-{% block content %}
-{% if data.unconverted %}<div class="notice warn" role="status">Tiingo gave a day the plugin could not read, not recorded:<ul class="plain">{% for said in data.unconverted[:3] %}<li>{{ said }}</li>{% endfor %}</ul></div>{% endif %}
+{#- Datasets, at admin: the data role's (meridian/roles/data/datasets.html),
+    with Tiingo's nuance at its blocks only -- the days Tiingo gave that
+    could not be read, how many wants there are past the latest few drawn,
+    and each fund listed, with the deployment's record for it, searched and
+    paged. No NAV: prices are the reading roles'. -#}
+{% extends "meridian/roles/data/datasets.html" %}
+{% import "meridian/kit.html" as kit %}
+{% block status %}{{ kit.status({"state": state[0], "label": state[1], "detail": state[2], "at": checked_at, "at_label": "Last checked"}) }}{% endblock %}
+{% block vendor_notices %}
+{% if data.unconverted %}<div class="notice warn" role="status">Tiingo gave a day the plugin could not read, not recorded: {{ data.unconverted[:3]|join("; ") }}</div>{% endif %}
+{% if wants > data.wants|length %}<p class="muted">The latest {{ data.wants|length }} of {{ wants }} wants are shown.</p>{% endif %}
+{% endblock %}
+{% block vendor_sections %}
 <section class="panel">
-<div class="list-row one-line"><div class="grow"><span class="title"><code>{{ data.dataset.dataset }}</code></span> <span class="badge warn">One person's terms</span>
-<span class="meta">{{ data.dataset.cadence | capitalize }} · {{ data.dataset.modes | join(", ") }} · NAVs · New York 16:00</span></div>
-<details class="row-detail" name="dataset"><summary aria-label="Details of the dataset">…</summary><div class="row-detail-pop"><h3>{{ data.dataset.dataset }}</h3><dl>
-<dt>Vendor</dt><dd>{{ data.dataset.vendor }}</dd>
-<dt>Data</dt><dd>{{ data.dataset.data_types | join(", ") }}: each mutual fund's net asset value per share, kind nav, in US dollars</dd>
-<dt>Modes</dt><dd>{{ data.dataset.modes | join(", ") }}: each fund's latest days pushed every six hours; a past day pulled when the lake wants it</dd>
-<dt>Day</dt><dd>{{ data.dataset.day }}; a NAV's date is its business date</dd>
-<dt>History</dt><dd>{{ data.dataset.history }}</dd>
-<dt>Venue</dt><dd>{{ data.dataset.venue }}</dd>
-<dt>Licence, as the catalogue declares it</dt><dd>{{ data.dataset.licence }}. The deployment's licence, on its Data sources page, confirms or replaces it.</dd>
-<dt>At Tiingo</dt><dd>{{ data.entitled_at_vendor }}</dd>
-</dl></div></details></div>
-<div class="list-row one-line"><div class="grow"><span class="title">Wants</span>
-<span class="meta">{{ data.standing | length }} standing, kept current by each check{% for want in shown_wants %} · {{ want.asked }}: {{ want.recorded }} recorded{% if want.declined %}, {{ want.declined }}{% endif %}{% else %} · none answered yet{% endfor %}</span></div>
-{% if data.wants or data.standing %}<details class="row-detail" name="dataset"><summary aria-label="Details of the wants">…</summary><div class="row-detail-pop"><h3>Wants</h3><dl>
-{% for want in data.standing %}<dt>Standing {{ want.want_id }}</dt><dd>{{ want.subjects }} subjects, since {{ want.at | moment }}</dd>{% endfor %}
-{% for want in data.wants %}<dt>{{ want.asked }}{% if want.standing %}, standing{% endif %}</dt><dd>{{ want.subjects }} subjects, {{ want.recorded }} NAVs recorded{% if want.declined %}, declined {{ want.declined }}{% endif %}, {{ want.at | moment }}</dd>{% endfor %}
-</dl></div></details>{% endif %}</div>
-</section>
-<section class="panel">
+<h2>Funds</h2>
 {% if data.funds %}
-<div class="panel-body"><form class="filters" method="get" role="search">
+<form class="filters" method="get" role="search">
 <input type="search" name="q" value="{{ query }}" placeholder="Search funds" aria-label="Search funds by ticker or name">
 <button>Search</button>{% if query %} <a href="?">Clear</a>{% endif %}
-<span class="muted">{{ shown | length }} of {{ data.funds | length }}</span></form></div>
+<span class="muted">{{ shown|length }} of {{ data.funds|length }}</span></form>
 {% if shown %}
 <om-pager>
 <table class="one-line">
 <thead><tr><th>Ticker</th><th class="wide-only">Name</th><th>At Tiingo</th><th>Instrument</th><th class="wide-only">Latest recorded</th><th class="more"><span class="visually-hidden">Details</span></th></tr></thead>
 <tbody>
 {% for f in shown %}
-<tr data-ticker="{{ f.ticker }}" data-served="{{ 'yes' if f.served else 'no' }}"><td><code>{{ f.ticker }}</code></td><td class="wide-only">{{ f.name or "" }}</td><td>{% if f.served %}<span class="badge good">{{ f.at_tiingo }}</span>{% else %}<span class="badge{% if f.at_tiingo != 'mutual fund' %} warn{% endif %}">{{ f.at_tiingo }}</span>{% endif %}</td><td>{% if f.instrument_id %}<code>{{ f.instrument_id }}</code>{% elif f.miss %}<span class="badge warn">{{ f.miss }}</span>{% else %}<span class="faint">not served</span>{% endif %}</td><td class="wide-only">{{ f.latest_recorded | day if f.latest_recorded else "" }}</td><td class="more"><details class="row-detail" name="funds"><summary aria-label="Details of {{ f.ticker }}">…</summary><div class="row-detail-pop"><h3>{{ f.ticker }}</h3><dl><dt>Name</dt><dd>{{ f.name or "not known" }}</dd><dt>At Tiingo</dt><dd>{{ f.at_tiingo }}{% if not f.served and f.at_tiingo.startswith("not a mutual fund") %}: not recorded here; its closes are the equity datasets'{% endif %}</dd><dt>The deployment's record</dt><dd>{% if f.instrument_id %}<code>{{ f.instrument_id }}</code>{% if f.from_setting %}, as the Funds setting names it{% elif f.from_want %}, not listed: read from the record when the lake wanted it{% else %}, by Tiingo's symbol{% endif %}{% elif f.miss == "record not found" %}None: the deployment holds no record by the ID the Funds setting names; pick it again there{% elif f.miss %}None: {{ f.miss }}, reported missing; name it in the Funds setting, or complete it at the Instruments page{% else %}None{% endif %}</dd><dt>History from</dt><dd>{{ f.history_from or "not known" }}</dd><dt>Latest recorded</dt><dd>{{ f.latest_recorded or "nothing yet" }}</dd></dl></div></details></td></tr>
+<tr data-ticker="{{ f.ticker }}" data-served="{{ 'yes' if f.served else 'no' }}"><td><code>{{ f.ticker }}</code></td><td class="wide-only">{{ f.name or "" }}</td><td>{% if f.served %}<span class="badge good">{{ f.at_tiingo }}</span>{% else %}<span class="badge{% if f.at_tiingo != 'mutual fund' %} warn{% endif %}">{{ f.at_tiingo }}</span>{% endif %}</td><td>{% if f.instrument_id %}<code>{{ f.instrument_id }}</code>{% elif f.miss %}<span class="badge warn">{{ f.miss }}</span>{% else %}<span class="faint">not served</span>{% endif %}</td><td class="wide-only">{{ f.latest_recorded|day if f.latest_recorded else "" }}</td><td class="more"><details class="row-detail" name="funds"><summary aria-label="Details of {{ f.ticker }}">…</summary><div class="row-detail-pop"><h3>{{ f.ticker }}</h3><dl><dt>Name</dt><dd>{{ f.name or "not known" }}</dd><dt>At Tiingo</dt><dd>{{ f.at_tiingo }}{% if not f.served and f.at_tiingo.startswith("not a mutual fund") %}: not recorded here; its closes are the equity datasets'{% endif %}</dd><dt>The deployment's record</dt><dd>{% if f.instrument_id %}<code>{{ f.instrument_id }}</code>{% if f.from_setting %}, as the Funds setting names it{% elif f.from_want %}, not listed: read from the record when the lake wanted it{% else %}, by Tiingo's symbol{% endif %}{% elif f.miss == "record not found" %}None: the deployment holds no record by the ID the Funds setting names; pick it again there{% elif f.miss %}None: {{ f.miss }}, reported missing; name it in the Funds setting, or complete it at the Instruments page{% else %}None{% endif %}</dd><dt>History from</dt><dd>{{ f.history_from or "not known" }}</dd><dt>Latest recorded</dt><dd>{{ f.latest_recorded or "nothing yet" }}</dd></dl></div></details></td></tr>
 {% endfor %}
 </tbody>
 </table>
@@ -47,7 +33,7 @@
 <div class="empty-state"><strong>No fund matches "{{ query }}"</strong><p>Search by its ticker, its name, or what Tiingo says it is.</p></div>
 {% endif %}
 {% else %}
-<div class="empty-state"><strong>No fund listed</strong><p>Add each mutual fund to keep NAVs for in this plugin's Settings, under Funds.</p></div>
+<p class="muted"><strong>No fund listed:</strong> add each mutual fund to keep NAVs for in this plugin's Settings, under <a href="#funds" data-om-opens="funds">Funds</a>.</p>
 {% endif %}
 </section>
 {% endblock %}

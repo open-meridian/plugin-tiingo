@@ -4,12 +4,12 @@ An [Open Meridian](https://open-meridian.com) plugin that puts mutual funds'
 daily net asset values from [Tiingo](https://www.tiingo.com) into a
 deployment's lake: each fund you list, its NAV for each business day, so a
 reporting plugin can value a fund no exchange prices, such as VIGIX. It holds
-the `dgm` role. This is release 0.1.0, not released yet. How to set it up and
+the `data` role, a data plugin. This is release 0.2.0, not released yet. How to set it up and
 use it is in [docs/](docs/README.md); how a plugin like it is built is
 documented at [open-meridian.dev](https://open-meridian.dev).
 
-It is built on the SDK it pins, `open-meridian==0.22.0`, which declares
-contract v18, the lake prices the book (meridian-design
+It is built on the SDK it pins, `open-meridian==0.24.0`, which declares
+contract v20; its work is the lake prices the book (meridian-design
 `plans/the-lake-prices-the-book.md`, row 14).
 
 ## What it records
@@ -25,13 +25,20 @@ contract v18, the lake prices the book (meridian-design
   are the equity datasets'); a ticker Tiingo does not know is shown as not
   found.
 - **Each fund resolved** to the deployment's record: the one its row in the
-  Funds setting names, or its ticker as Tiingo's symbol, a miss reported.
+  Funds setting names, or its ticker as Tiingo's symbol, a miss reported;
+  every resolve as of the moment it is asked. No currency is resolved here:
+  a NAV names its dollars by code, and core resolves the code to the
+  platform master's currency, pulled, never a stub the plugin minted.
 - **Every response kept** as received, without the token, in the storage the
   deployment grants, and named by each row read from it.
 
-Its pages, under Manage alone, show how it reaches Tiingo and what it serves,
-never a NAV and never the token: **Connection** (`read_connection`) and
-**Datasets** (`read_datasets`), each the same through the deployment's MCP.
+Its pages, under Manage alone, are the data role's, the same on every data
+plugin, and show how it reaches Tiingo and what it serves, never a NAV and
+never the token: **Connection** (`read_connection`) and **Datasets**
+(`read_datasets`), each the same through the deployment's MCP, Datasets
+saying whether a deployment admin has licensed the dataset. The data role's
+figures are on its Summary. It does not stream, so it has no restart's gap
+to backfill.
 
 ## Settings
 
@@ -43,8 +50,8 @@ never a NAV and never the token: **Connection** (`read_connection`) and
   reader asks for its NAV, the plugin reads its record, and where the
   record carries a ticker Tiingo files as a mutual fund, serves it from then
   on, up to the same 100 funds in all.
-- **Synthetic mode**, on a development deployment: invented responses, no
-  token.
+- **Sample data** (`sample_data`, `synthetic` until 0.2.0), on a
+  development deployment: invented responses, no token.
 
 ## The live check, for the person who holds the Tiingo account
 
@@ -55,12 +62,14 @@ and no token was ever handled by its builders. To check it live:
 2. Enter your token in **API token** (from your Tiingo account's API page).
 3. Under **Funds**, add `VIGIX`, and pick its instrument where your
    custodian's positions already name one. Save.
-4. Open **Connection**: within a minute it says "Tiingo read", the token
-   "Set", a few requests this hour. Open **Datasets**: VIGIX is a mutual fund,
+4. Open **Connection**: within a minute its Mode says Live, the API token
+   "set", a few requests this hour; the Summary's Connection figure says
+   Answering. Open **Datasets**: VIGIX is a mutual fund,
    resolved to an instrument, its latest recorded day the last business day.
    Or ask an agent for `read_datasets` through the deployment's MCP.
 5. On the deployment's **Data sources** page, license `<instance>:daily` as
-   your terms say, and entitle your reporting plugin to it.
+   your terms say, and entitle your reporting plugin to it. Datasets says it
+   is licensed within a minute.
 
 If Connection says Tiingo refused the token, enter it again; if it says the
 limit was reached, the plugin waits and tries again.
@@ -70,24 +79,23 @@ limit was reached, the plugin waits and tries again.
     make ci-local                                  # lint, tests, plugin check, image, e2e: the pre-push gate
     make preview SHOTS=<dir>                       # each page in a browser with the kit, at 1440x900 and 390x844
 
-`make e2e` runs it on core's plugin harness (core e4a14fc, contract v18 as
-ruled 2026-10-10) beside a reading plugin, Tiingo's API unreachable: waiting
-with no token, then in synthetic mode with VIGIX, VOO and NOSUCH listed,
+`make e2e` runs it on core's plugin harness (core v20, local) beside a
+reading plugin, Tiingo's API unreachable: no key said with no token, then on
+sample data with VIGIX, VOO and NOSUCH listed,
 VIGIX alone served, its NAVs read back, a past day wanted and recorded, a
 day with no NAV yet declined, VTSAX -- listed nowhere, known only by a
 custodian's CUSIP and symbol -- read from its record and its NAV recorded
 for the reader, both tools answering what the pages show, and a new
-container recording nothing twice.
+container recording nothing twice and reading its licence on start.
 
-**The `dgm` suite.** `tests/test_suite.py` runs the SDK's suite on the
-plugin's own conversion. A NAV-only source presents six of its thirteen
-cases, a fund known only by another source's identifiers among them; the
-other seven ask for a close, a bar, an FX rate, a stablecoin or a
-venue, which a fund's NAV is not, and the SDK's runner lets only a
-closed-list case be not presented, so by its rule the plugin is short of the
-suite and not verified; the test holds it to exactly that.
+**The data suite.** `tests/test_suite.py` runs the SDK's suite on the
+plugin's own conversion, and it passes: seven cases are presented, a fund
+known only by another source's identifiers and its dataset's licences
+among them; every other case is about a kind of data a fund's NAV is not
+(a close, a bar, an FX rate, a crypto asset, a venue, trades, quotes), and
+is not presented, with why, as the suite lets it.
 
-**CI is red until open-meridian 0.22.0 is on PyPI** and its base image on
+**CI is red until open-meridian 0.24.0 is on PyPI** and its base image on
 ghcr.io: the runners install the pin from there. Locally the Makefile builds
 both from the sibling meridian-python checkout.
 

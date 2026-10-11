@@ -1,10 +1,10 @@
 # meridian-tiingo
 
-Mutual funds' daily net asset values from Tiingo as an Open Meridian `dgm`
-plugin, in Python on the open-meridian SDK (0.22.0, contract v18). It runs
+Mutual funds' daily net asset values from Tiingo as an Open Meridian data
+plugin, in Python on the open-meridian SDK (0.24.0, contract v20). It runs
 beside a sidecar in a Meridian deployment and puts each listed fund's NAVs
 into the deployment's lake, end of day. What it may publish and subscribe to
-comes from its one role, `dgm`, declared in `pyproject.toml`, once a
+comes from its one role, `data`, declared in `pyproject.toml`, once a
 deployment admin approves it. Its plan is meridian-design's
 `plans/the-lake-prices-the-book.md`, row 14 (VIGIX valued at its NAV).
 
@@ -25,9 +25,14 @@ deployment admin approves it. Its plan is meridian-design's
   (W10.4), and answers the lake's wants or declines them per subject (W10.7).
 - `src/tiingo/raw.py` keeps every response as received, without the token,
   in the storage the deployment grants, and moves months past their window.
-- `src/tiingo/page.py` and `templates/` are the two pages under Manage,
-  Connection and Datasets, each a read tool (`read_connection`,
-  `read_datasets`) on the deployment's MCP.
+- `src/tiingo/page.py`, `records.py` and `templates/` are the data role's
+  two pages under Manage (spec/plugin-pages-follow-their-role), Connection
+  and Datasets, each a read tool (`read_connection`, `read_datasets`) on the
+  deployment's MCP answering the role's common fields,
+  `meridian.roles.data`'s records extended with Tiingo's. The templates
+  extend the role's and add Tiingo's nuance at its blocks alone
+  (`vendor_notices`, `vendor_rows`, `vendor_columns`, `vendor_sections`):
+  never rename, reorder or drop a common section, row, column or label.
 
 ## The rules it keeps
 
@@ -40,7 +45,7 @@ deployment admin approves it. Its plan is meridian-design's
   its account holder's own use. The synthetic responses are shaped on
   Tiingo's documented responses with invented values; a live run's responses
   stay in the deployment's storage.
-- **A dgm shows no price.** Its pages show its connection, its datasets and
+- **A data plugin shows no price.** Its pages show its connection, its datasets and
   how each fund resolves, never a NAV. A test holds every page to it.
 - **Exact decimals.** Tiingo's numbers are JSON numbers: read with
   `parse_float=Decimal`, never as a `float`.
@@ -48,11 +53,14 @@ deployment admin approves it. Its plan is meridian-design's
   recorded: its closes are the equity datasets'.
 - **Every row names its raw record,** and a NAV read again names the response
   it was first read from at that value, so the lake answers it unchanged.
-- **The suite.** `tests/test_suite.py` runs `meridian.suites.run("dgm", ...)`
-  on the plugin's own conversion. A NAV-only source presents six of its
-  thirteen cases; the seven it cannot (closes, a bar, an FX rate, a stablecoin,
-  venues) fail for want of a producer, which the test holds exactly. Never
-  write a producer that invents what Tiingo does not state for a fund.
+- **As of now, said.** Every resolve names its as-of; the plugin resolves no
+  currency (a NAV names its dollars by code, for core to resolve to the
+  platform master's currency).
+- **The suite.** `tests/test_suite.py` runs `meridian.suites.run("data", ...)`
+  on the plugin's own conversion, and passes: a case about a kind of data a
+  NAV-only source never publishes (closes, bars, an FX rate, a crypto asset,
+  venues, trades, quotes) is named in `not_presented` with why. Never write
+  a producer that invents what Tiingo does not state for a fund.
 
 ## Checking it locally
 
@@ -322,16 +330,16 @@ Ask the question that answers what you changed:
 
 | To know | Run |
 |---|---|
-| What a page shows, as the person is served it | `meridian plugin open --instance tiingo --level manage --print /` for Connection, and `--print /datasets` for Datasets, both under Manage, the only level its pages are declared with |
+| What a page shows, as the person is served it | `meridian plugin open --instance tiingo --level open --print /` for Accounts under Open (`--level view` under View), and `--level manage --print /setup` for Setup under Manage: any path on the plugin, at a level it is declared with |
 | What the plugin printed or logged since your change | `meridian plugin logs --instance tiingo --since <R-1>` |
 | What the sidecar refused it, or what else happened | `meridian plugin events --instance tiingo --since <R-1> --json` |
-| What the person sees in a browser | `meridian plugin open --instance tiingo --level manage`: a link one browser opens once, at that level. Give it to the person, or open it in your browser pane |
+| What the person sees in a browser | `meridian plugin open --instance tiingo --level open`: a link one browser opens once, at that level. Give it to the person, or open it in your browser pane |
 
 `--level` is the home's button the session is opened by: `manage`, `open` or
 `view`. Name it every time. A page answers 403 at a level it is not declared
 with, and without `--level` the dashboard opens at the first level the person
-holds, Manage before Open before View; this plugin's pages are all under
-Manage.
+holds, Manage before Open before View, so on a development deployment, where
+they hold `admin`, `/` would be asked under Manage and refused.
 
 `--print` exits non-zero when the plugin answers with an error, and prints what
 it answered. Prefer it to a browser for checking your own work: it needs no

@@ -1,4 +1,4 @@
-"""The pages as synthetic mode shows them, each printed as one HTML file:
+"""The pages on sample data, each printed as one HTML file:
 for looking at them without a deployment.
 
     python -m tiingo.preview connection > preview/connection.html
@@ -11,7 +11,9 @@ a mutual fund, resolved and its last days recorded; VOO, an ETF, not served;
 NOSUCH, which Tiingo does not know. A want for 22 September is answered, one
 for 12 October declined (no NAV yet), and a standing want kept current; and
 VTSAX, listed nowhere, wanted by a custodian's record (its CUSIP and the
-custodian's symbol), read from it and served.
+custodian's symbol), read from it and served. `connection-no-key` and
+`datasets-no-key` are the pages before the token is set: the role's "not
+set up yet" states.
 Each page links the kit where the dashboard serves it: served beside the kit
 it is styled (`make preview SHOTS=...` checks each in a browser); opened on
 its own it is the page without the kit, unstyled, which works too.
@@ -34,7 +36,13 @@ from .raw import RawStore
 from .settings import Config, Fund
 
 AT = datetime(2026, 10, 10, 11, 0, tzinfo=UTC)
-PAGES = {"connection": CONNECTION, "datasets": DATASETS, "datasets-search": DATASETS}
+PAGES = {
+    "connection": CONNECTION,
+    "datasets": DATASETS,
+    "datasets-search": DATASETS,
+    "connection-no-key": CONNECTION,
+    "datasets-no-key": DATASETS,
+}
 #: What the Datasets tab's search is shown with, as `datasets-search`.
 SEARCHED = "vanguard"
 FUNDS = (Fund("VIGIX"), Fund("VOO"), Fund("NOSUCH"))
@@ -58,7 +66,7 @@ def _want(want_id: str, subject: str, day: str = "", standing: bool = False) -> 
 
 
 async def synthetic_feed() -> Feed:
-    """A feed as synthetic mode leaves it, on the recorder."""
+    """A feed as sample data leaves it, on the recorder."""
     recorder = Recorder("tiingo")
     custodians = [
         ops.Identifier(scheme="cusip", value="922908728"),
@@ -79,7 +87,7 @@ async def synthetic_feed() -> Feed:
         ),
     )
     feed = Feed(recorder, RawStore(), now=lambda: AT)
-    feed.configure(Config(funds=FUNDS, synthetic=True))
+    feed.configure(Config(funds=FUNDS, sample_data=True))
     await feed.check()
     vigix = feed.status.funds["VIGIX"].instrument_id
     await feed.on_want(_want("want-0922", vigix, "2026-09-22"))
@@ -90,7 +98,11 @@ async def synthetic_feed() -> Feed:
 
 
 def render(page: str) -> str:
-    feed = asyncio.run(synthetic_feed())
+    if page.endswith("-no-key"):
+        feed = Feed(Recorder("tiingo"), RawStore(), now=lambda: AT)
+        feed.configure(Config(missing=("tiingo_api_token",)))
+    else:
+        feed = asyncio.run(synthetic_feed())
     hold(feed)
     query = {"q": SEARCHED} if page == "datasets-search" else {}
     answer = PageClient(pages).get(PAGES[page], "admin", **query)

@@ -1,32 +1,21 @@
-"""The `dgm` suite (meridian.suites, contract v18), each case Tiingo's NAVs
-present mapped to the plugin's own conversion of synthetic Tiingo responses.
+"""The data suite (meridian.suites, contract v20), each case Tiingo's NAVs
+present mapped to the plugin's own conversion of recorded Tiingo responses,
+the whole suite passing.
 
-The plugin serves one thing: mutual funds' net asset values. It presents
-six of the suite's thirteen cases. Seven ask for what it never records, and
-it has no conversion for them, so they have no producer here:
-
-- `a-daily-close`, `the-forming-day-restated` and `an-fx-rate` each expect a
-  price of kind `close`; a fund's price is its NAV, kind `nav`, and the
-  plugin records no close (Tiingo's closes of stocks and ETFs are the equity
-  datasets');
-- `a-daily-bar`: a fund's open, high and low are its NAV and its volume 0,
-  which is no bar;
-- `a-stablecoin-quote`: no crypto asset;
-- `a-venue-resolved` and `a-venue-not-held`: a fund strikes its NAV on no
-  venue, so the dataset declares none and no row names one.
+The plugin serves one thing: mutual funds' net asset values, kind `nav`. A
+case about a kind of data it never publishes (`about`, from contract v19)
+is not presented, with why (`NOT_PRESENTED`): closes (a fund's price is its
+NAV), bars, a currency's rate, a crypto asset's price, prices on a venue (a
+fund strikes its NAV on no venue), trades and quotes. A case about a field
+of a trade (`about_field`, from contract v20) is about trades, so not
+presented the same way; and so is a restart's gap, backfilled, which is
+about trades. Every other case is presented, its datasets' licences among
+them.
 
 `a-subject-another-source-resolved` (contract v18 as ruled 2026-10-10) is
 presented: a fund the book holds from a custodian, its record carrying the
 custodian's symbol and a CUSIP, is read (W3.6) and its NAV recorded against
 the want.
-
-The SDK's runner lets only a closed-list case be "not presented", and none of
-these is one, so by its rule the plugin is short of the suite and not
-verified: the test holds it to exactly the six it presents, and to the
-seven failing for want of a producer, never for a wrong answer. Whether a
-source may say it records no closes, bars, tokens or venues is a question
-for the suite's owner (meridian-design matrix/boundaries/suites/dgm.yaml),
-raised with this build.
 """
 
 from __future__ import annotations
@@ -37,7 +26,7 @@ from typing import Any
 
 from meridian.operations import as_decimal
 from meridian.plugin.v1 import operations_pb2 as ops
-from meridian.suites import Recorder, names, run
+from meridian.suites import Recorder, run, suite
 
 from tiingo.feed import Feed
 from tiingo.raw import RawStore
@@ -45,14 +34,19 @@ from tiingo.settings import Config, Fund
 
 from conftest import AT, CUSTODIAN, CUSTODIANS, DATASET, held, want
 
+#: Why each kind of data a case may be about is never published here.
+NEVER = {
+    "closes": "a fund's price is its NAV, kind nav: no close is recorded",
+    "bars": "a fund's open, high and low are its NAV: no bar",
+    "a currency's rate against another currency": "no currency's rate",
+    "a crypto asset's price": "no crypto asset",
+    "prices on a venue": "a fund strikes its NAV on no venue",
+    "trades": "mutual funds' NAVs only: Tiingo's end-of-day prices state no trades",
+    "quotes": "mutual funds' NAVs only: Tiingo's end-of-day prices state no quotes",
+}
+
 NOT_PRESENTED = {
-    "a-daily-close": "a fund's price is its NAV, kind nav: no close is recorded",
-    "the-forming-day-restated": "a fund's price is its NAV, kind nav: no close is recorded",
-    "an-fx-rate": "no currency's rate",
-    "a-daily-bar": "a fund's open, high and low are its NAV: no bar",
-    "a-stablecoin-quote": "no crypto asset",
-    "a-venue-resolved": "a fund strikes its NAV on no venue",
-    "a-venue-not-held": "a fund strikes its NAV on no venue",
+    case.name: NEVER[case.about] for case in suite("data").cases if case.about in NEVER
 }
 
 
@@ -70,7 +64,7 @@ def _resolving(recorder: Recorder, ambiguous: bool = False) -> None:
 def producers(tmp: Path) -> dict[str, Callable[[Recorder], Awaitable[None]]]:
     def work(recorder: Recorder) -> Feed:
         feed = Feed(recorder, RawStore(tmp), now=lambda: AT)
-        feed.configure(Config(funds=(Fund("VIGIX"),), synthetic=True))
+        feed.configure(Config(funds=(Fund("VIGIX"),), sample_data=True))
         return feed
 
     async def navs_read(recorder: Recorder) -> None:
@@ -106,6 +100,18 @@ def producers(tmp: Path) -> dict[str, Callable[[Recorder], Awaitable[None]]]:
         recorder.answer("ObservationsWanted", lambda _: message)
         await recorder.receive(observations_wanted=feed.on_want)
 
+    async def licences(recorder: Recorder) -> None:
+        # On start, its own declared datasets' licences (contract v20).
+        from tiingo.__main__ import read_licences
+
+        recorder.answer(
+            "ListDatasets",
+            lambda _: ops.ListDatasetsResult(licences=[ops.DatasetLicence(dataset=DATASET)]),
+        )
+        feed = work(recorder)
+        await read_licences(recorder, feed)
+        assert feed.status.licensed == {DATASET}
+
     async def withdrawn(recorder: Recorder) -> None:
         _resolving(recorder)
         feed = work(recorder)
@@ -121,15 +127,15 @@ def producers(tmp: Path) -> dict[str, Callable[[Recorder], Awaitable[None]]]:
         "a-subject-another-source-resolved": elsewhere,
         "a-subject-declined": wanted(want("w-2", ["LCL-elsewhere"], day="2026-10-08").message),
         "a-standing-want-withdrawn": withdrawn,
+        "reads-its-datasets-licences": licences,
     }
 
 
-def test_the_dgm_suite(tmp_path: Path) -> None:
-    report = run("dgm", producers(tmp_path), instance_id="tiingo")
-    presented = [name for name in names("dgm") if name not in NOT_PRESENTED]
-    assert report.passed_cases == presented, report.failures
-    assert set(report.failures) == set(NOT_PRESENTED)
-    assert all(why.startswith("no producer") for why in report.failures.values()), report.failures
+def test_the_data_suite_passes(tmp_path: Path) -> None:
+    report = run("data", producers(tmp_path), not_presented=NOT_PRESENTED, instance_id="tiingo")
+    assert report.passed, report.failures
+    assert sorted(report.not_presented) == sorted(NOT_PRESENTED)
+    assert len(report.passed_cases) == 7
 
 
 def test_a_nav_never_passes_through_a_float(tmp_path: Path) -> None:
@@ -138,7 +144,7 @@ def test_a_nav_never_passes_through_a_float(tmp_path: Path) -> None:
     recorder = Recorder("tiingo")
     _resolving(recorder)
     feed = Feed(recorder, RawStore(tmp_path), now=lambda: AT)
-    feed.configure(Config(funds=(Fund("VIGIX"),), synthetic=True))
+    feed.configure(Config(funds=(Fund("VIGIX"),), sample_data=True))
     asyncio.run(feed.check())
     amounts = {
         p.meta.row_key: str(as_decimal(p.price.amount))

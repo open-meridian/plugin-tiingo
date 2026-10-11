@@ -9,7 +9,7 @@
 # `meridian plugin upload` does, which is checked by ci-local before every
 # push.
 #
-# Red until open-meridian 0.22.0 is on PyPI: the tests' container installs the
+# Red until open-meridian 0.24.0 is on PyPI: the tests' container installs the
 # pin from there on a runner. Locally the Makefile installs it from the
 # sibling meridian-python checkout.
 

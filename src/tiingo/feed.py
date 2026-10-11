@@ -12,7 +12,14 @@ where it names one; otherwise its ticker resolved as Tiingo's symbol
 (`symbol` VIGIX from source `tiingo`, W3.1), with what Tiingo states of it --
 a fund, in US dollars, its name -- and a miss reported with why (W3.2).
 
-**Records another source named** (W3.6, a dgm's from contract v18 as ruled
+**As of now, said** (contract v20, as fed-h10 does): every resolve names its
+as-of, the time it is asked -- a fund is resolved once and served for
+every day after -- since one left out is the epoch, which no identifier
+window the deployment keeps covers. The plugin resolves no currency: a NAV
+names its dollars by code, and core resolves the code to the platform
+master's currency, pulled, never a stub the plugin minted.
+
+**Records another source named** (W3.6, a data plugin's from contract v18 as ruled
 2026-10-10). A record the Funds row names is read: one the deployment does
 not hold is not served, and one carrying no Tiingo symbol gains it, reported
 beside an identifier it carries (W3.1) -- matching another record is two
@@ -22,7 +29,7 @@ a custodian, known by the custodian's symbol and a CUSIP -- is read the same
 way: where it carries a symbol Tiingo files as a mutual fund, and no listed
 fund is served under that ticker already, it is served from then on beside
 the funds listed, up to the same limit, and Tiingo's symbol joined to it. On
-a runtime that grants a dgm no read of a record, the record a row names is
+a runtime that grants a data plugin no read of a record, the record a row names is
 taken as named and a wanted one declined, as before the ruling.
 
 **Push.** At start, when the settings change and every six hours, each
@@ -141,6 +148,13 @@ class Status:
     read: dict[str, FundState] = field(default_factory=dict)
     #: Whether the deployment answers this plugin's ResolveInstrument.
     reads_instruments: bool = True
+    #: Subjects declined since start, Tiingo's 429s, and the last time a
+    #: NAV was recorded or restated.
+    declined: int = 0
+    rate_limited: int = 0
+    last_recorded_at: datetime | None = None
+    #: The datasets a deployment admin has licensed (contract v20), as read.
+    licensed: frozenset[str] = frozenset()
     unconverted: list[str] = field(default_factory=list)
     wants: list[Answered] = field(default_factory=list)
     standing: dict[str, tuple[int, datetime]] = field(default_factory=dict)
@@ -189,10 +203,10 @@ class Feed:
 
     def configure(self, config: Config) -> None:
         """Take a delivery of the settings: the token and mode, and the funds."""
-        keyed = (config.synthetic, config.token)
+        keyed = (config.sample_data, config.token)
         if keyed != self._keyed:
             self._keyed = keyed
-            self.vendor = tiingo(config.synthetic, config.token, self.now)
+            self.vendor = tiingo(config.sample_data, config.token, self.now)
             self.status.error = ""
             for fund in self.every_fund():
                 fund.found, fund.latest = "", ""
@@ -220,7 +234,7 @@ class Feed:
             Config(
                 token="",
                 funds=tuple(funds),
-                synthetic=self.vendor is not None and self.vendor.mode == "synthetic",
+                sample_data=self.vendor is not None and self.vendor.mode == "synthetic",
             )
         )
 
@@ -241,6 +255,7 @@ class Feed:
             # plugin says only what happened.
             raise Unreachable(f"Tiingo refused the token ({fetched.status})")
         if fetched.status == 429:
+            self.status.rate_limited += 1
             raise OverBudget("Tiingo answered 429: its limit for the token was reached")
         return fetched, self.raw.keep(fetched)
 
@@ -275,6 +290,7 @@ class Feed:
         identifier = ops.Identifier(scheme="symbol", value=fund.ticker, source=SOURCE)
         found = await self.plugin.resolve_identifier(
             identifiers=[identifier],
+            as_of_ns=_ns(self.now()),
             stated_asset_class="fund",
             stated_currency="USD",
             stated_description=fund.name,
@@ -289,13 +305,14 @@ class Feed:
             asset_class="fund",
             identifiers=[identifier],
             reason=reason,
+            as_of_ns=_ns(self.now()),
             observed_at_ns=_ns(self.now()),
         )
 
     # ── The deployment's records (W3.6, W3.1, W3.2) ─────────────────────
 
     async def read_record(self, instrument_id: str) -> ops.ResolveInstrumentResult | None:
-        """What the deployment's record is; None where this dgm may not read
+        """What the deployment's record is; None where this data plugin may not read
         it, on a runtime from before the ruling of 2026-10-10 (asked once)."""
         if not self.status.reads_instruments:
             return None
@@ -304,7 +321,9 @@ class Feed:
                 instrument_id=instrument_id, as_of_ns=_ns(self.now())
             )
         except meridian.NotGranted:
-            log.warning("this dgm may not read an instrument's record: serving the funds listed")
+            log.warning(
+                "this data plugin may not read an instrument's record: serving the funds listed"
+            )
             self.status.reads_instruments = False
             return None
         return found
@@ -325,6 +344,7 @@ class Feed:
         given = ops.Identifier(scheme=given.scheme, value=given.value, source=given.source)
         found = await self.plugin.resolve_identifier(
             identifiers=[own, given],
+            as_of_ns=_ns(self.now()),
             stated_asset_class="fund",
             stated_currency="USD",
             stated_description=fund.name,
@@ -339,6 +359,7 @@ class Feed:
             asset_class="fund",
             identifiers=[own, given],
             reason=reason,
+            as_of_ns=_ns(self.now()),
             observed_at_ns=_ns(self.now()),
         )
 
@@ -407,6 +428,8 @@ class Feed:
         fund.latest = max(fund.latest, latest)
         self.status.recorded += outcome.recorded
         self.status.restated += outcome.restated
+        if outcome.recorded or outcome.restated:
+            self.status.last_recorded_at = self.now()
         self.status.unchanged += outcome.unchanged
         return outcome
 
@@ -479,6 +502,7 @@ class Feed:
             reason=reason,
         )
         declined[reason] = declined.get(reason, 0) + len(subjects)
+        self.status.declined += len(subjects)
 
     async def on_want(self, heard: meridian.Heard[ops.ObservationsWantedEvent]) -> None:
         """Record what the lake wants of the plugin's dataset, or decline it."""

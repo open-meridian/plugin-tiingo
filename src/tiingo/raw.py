@@ -1,6 +1,6 @@
 """What Tiingo answered, kept as received, in the plugin's own storage.
 
-A `dgm` keeps its source's raw records in the storage the deployment grants
+A data plugin keeps its source's raw records in the storage the deployment grants
 an edge plugin (decisions/028, `meridian.edge.storage_dir()`), and every row
 it records names the one it was converted from (`ObservationMeta.raw`). Here
 that is each of Tiingo's responses: its address (which never holds the

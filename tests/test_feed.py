@@ -34,7 +34,7 @@ async def test_only_a_mutual_fund_is_served(tmp_path: Path) -> None:
 
 
 async def test_a_record_the_setting_names_is_read_and_the_subject(tmp_path: Path) -> None:
-    # Contract v18 as ruled 2026-10-10: a dgm reads an instrument's record
+    # Contract v18 as ruled 2026-10-10: a data plugin reads an instrument's record
     # (W3.6). The record carries the custodian's symbol alone, so Tiingo's
     # is reported beside it (W3.1) and found to be the same record.
     recorder = Recorder("tiingo")
@@ -82,7 +82,7 @@ async def test_a_record_the_setting_names_that_is_not_held_is_not_served(
 
 
 async def test_with_no_read_of_a_record_it_is_taken_as_named(tmp_path: Path) -> None:
-    # A runtime from before the ruling of 2026-10-10 grants a dgm no read of
+    # A runtime from before the ruling of 2026-10-10 grants a data plugin no read of
     # an instrument's record: the row's record is the subject, unread, and a
     # wanted record no fund is, declined.
     import meridian
@@ -90,7 +90,7 @@ async def test_with_no_read_of_a_record_it_is_taken_as_named(tmp_path: Path) -> 
     recorder = Recorder("tiingo")
 
     def refused(_: ops.ResolveInstrumentParams) -> ops.ResolveInstrumentResult:
-        raise meridian.NotGranted("ResolveInstrument", "a dgm reads no instrument record")
+        raise meridian.NotGranted("ResolveInstrument", "a data plugin reads no instrument record")
 
     recorder.answer("ResolveInstrument", refused)
     work = feed(tmp_path, recorder, funds=(Fund("VIGIX", "LCL-from-snaptrade"),))
@@ -141,7 +141,7 @@ async def test_a_book_fund_known_only_by_another_sources_identifiers_is_served(
     batches = recorder.on("RecordPrices")[-2:]
     pushed = {p.meta.subjects[0].entity_id for b in batches for p in b.prices}
     assert pushed == {"LCL-VIGIX", CUSTODIAN}
-    work.configure(Config(funds=(Fund("VIGIX"), Fund("VTSAX")), synthetic=True))
+    work.configure(Config(funds=(Fund("VIGIX"), Fund("VTSAX")), sample_data=True))
     assert not work.status.read
 
 
@@ -258,7 +258,7 @@ async def test_a_standing_want_is_kept_until_withdrawn(tmp_path: Path) -> None:
 
 async def test_no_token_reads_nothing(tmp_path: Path) -> None:
     work = feed(tmp_path)
-    work.configure(Config(funds=(Fund("VIGIX"),), synthetic=False, missing=("tiingo_api_token",)))
+    work.configure(Config(funds=(Fund("VIGIX"),), sample_data=False, missing=("tiingo_api_token",)))
     assert work.vendor is None and work.status.mode == "waiting"
     assert await work.check() is None
     assert not work.plugin.on("RecordPrices")
@@ -284,3 +284,22 @@ async def test_a_refused_token_is_said_never_shown(tmp_path: Path) -> None:
     assert "refused the token" in work.status.error and "abc123secret" not in work.status.error
     kept = work.raw.keys()
     assert not any("abc123secret" in (work.raw.read(k) or {}).get("body", "") for k in kept)
+
+
+async def test_every_resolve_names_its_as_of_and_no_currency_is_resolved(tmp_path: Path) -> None:
+    """As of now, said (contract v20, as fed-h10 does): a resolve with no as-of
+    is the epoch, which no identifier window covers. And no currency is
+    resolved here: a NAV names its dollars by code, for core to resolve to
+    the platform master's currency, pulled, never a stub minted here."""
+    work = feed(tmp_path)
+    held(work.plugin, {CUSTODIAN: CUSTODIANS})
+    await work.check()
+    await work.on_want(want("w-vtsax", [CUSTODIAN], day="2026-10-08"))
+    now = int(AT.timestamp() * 1_000_000) * 1000
+    resolves = [*work.plugin.on("ResolveIdentifier"), *work.plugin.on("ResolveInstrument")]
+    missing = list(work.plugin.on("ReportMissingInstrument"))
+    assert resolves and all(r.as_of_ns == now for r in [*resolves, *missing])
+    named = [i.scheme for r in work.plugin.on("ResolveIdentifier") for i in r.identifiers]
+    assert "iso4217" not in named
+    prices = [p for r in work.plugin.on("RecordPrices") for p in r.prices]
+    assert prices and all(p.price.currency_code == "USD" for p in prices)

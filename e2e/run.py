@@ -3,15 +3,16 @@
 to its dataset, and the harness's admin. Run from the repository's root by
 the Makefile, which builds the image and writes the harness's plugins first;
 standard library only. No Tiingo token is ever set: the plugin's hosts file
-sends Tiingo's API nowhere, and synthetic mode reads invented responses.
+sends Tiingo's API nowhere, and sample data reads invented responses.
 
-1. Waiting: with no token, Connection says it waits for the API token, and
-   nothing is recorded.
-2. Synthetic mode on, three funds listed: VIGIX, a mutual fund, resolved and
+1. No key: with no token, Connection says "No key yet" (the data role's
+   "not set up yet" state), and nothing is recorded.
+2. Sample data on, three funds listed: VIGIX, a mutual fund, resolved and
    its last days' NAVs recorded; VOO, an ETF, not served; NOSUCH, which
    Tiingo does not know.
 3. Parity: through the deployment's MCP, `read_connection` and
-   `read_datasets` answer what the pages show, the token said to be unset and
+   `read_datasets` answer what the pages show under the data role's names
+   (contract v20), the token said to be unset and
    never shown; and core's `dashboard__list_datasets` lists `tiingo:daily` as
    the catalogue declares it: push and pull, daily, New York's day ending at
    16:00, one person's terms.
@@ -24,11 +25,12 @@ sends Tiingo's API nowhere, and synthetic mode reads invented responses.
 7. Another source's record: VTSAX, listed in no Funds row and known to the
    deployment only as a custodian's book holds it (its CUSIP and the
    custodian's symbol), is wanted; the plugin reads the record (W3.6, a
-   dgm's from contract v18 as ruled 2026-10-10), finds a mutual fund at
+   data plugin's from contract v18 as ruled 2026-10-10), finds a mutual fund at
    Tiingo and records its NAV against the want: 147.4, keyed VTSAX's way;
    Datasets lists it, read from the record.
 8. `store lake` is e2e/expected.lake, each subject named by its ticker.
-9. A new container: it reads the funds again and records nothing twice.
+9. A new container: it reads the funds again and records nothing twice, and
+   reads on start that its dataset is licensed, as Datasets then says.
 """
 
 import json
@@ -133,11 +135,11 @@ def run():
     runner("ready", "--instance", "reader")
 
     # 1. Waiting for the token.
-    runner("page", "--level", "admin", "/", "--until", "Waiting for the API token", "--seconds", "90")
+    runner("page", "--level", "admin", "/", "--until", "No key yet", "--seconds", "90")
     must("row|" not in store_lake(), "step 1, nothing recorded without a token")
 
-    # 2. Synthetic mode, three funds.
-    runner("settings", "synthetic=true", "funds[0].ticker=VIGIX", "funds[1].ticker=VOO",
+    # 2. Sample data, three funds.
+    runner("settings", "sample_data=true", "funds[0].ticker=VIGIX", "funds[1].ticker=VOO",
            "funds[2].ticker=NOSUCH")
     runner("page", "--level", "admin", "/datasets", "--until", 'data-ticker="VIGIX" data-served="yes"',
            "--seconds", "120")
@@ -152,8 +154,9 @@ def run():
     read_datasets = next((t for t in tools if t.endswith("read_datasets")), "")
     must(read_connection and read_datasets, f"step 3, the plugin's two tools are listed: {tools}")
     connection = call(read_connection)
-    must(connection["mode"] == "synthetic" and connection["token_set"] is False
-         and connection["state"] == "ok", f"step 3, read_connection: {connection}")
+    must(connection["mode"] == "Sample data" and connection["state"] == "ok"
+         and connection["credentials"] == [{"label": "API token", "set": False}]
+         and connection["sessions"] is None, f"step 3, read_connection: {connection}")
     funds = {f["ticker"]: f for f in call(read_datasets)["funds"]}
     must(funds["VIGIX"]["served"] and funds["VIGIX"]["at_tiingo"] == "mutual fund"
          and funds["VIGIX"]["latest_recorded"] == "2026-10-09"
@@ -227,17 +230,19 @@ def run():
           "step 9, the new container's check was not answered unchanged")
     again = named(store_lake(), names)
     must(again == got, "step 9, the new container recorded something twice")
+    until(90, lambda: all(s["licensed"] for s in call(read_datasets)["served"]),
+          "step 9, the new container never read its dataset's licence")
 
     rows = got.count("row|")
-    print(f"e2e OK in {int(time.time() - started)}s on the plugin harness, no Tiingo token: waiting "
-          f"said with none, nothing recorded; synthetic mode with VIGIX, VOO and NOSUCH listed, VIGIX "
+    print(f"e2e OK in {int(time.time() - started)}s on the plugin harness, no Tiingo token: no key "
+          f"said with none, nothing recorded; sample data with VIGIX, VOO and NOSUCH listed, VIGIX "
           f"alone served (VOO an ETF, NOSUCH not found); read_connection and read_datasets answering "
           f"what the pages show, the token said unset and never shown; core listing {DATASET} as "
           f"declared, one person's terms; licensed and entitled; VIGIX's NAV on 8 October read back "
           f"at 245.55 in dollars, kind nav; 22 September wanted and recorded, 12 October declined "
           f"source silent; VTSAX, known only by a custodian's CUSIP and symbol, read from its "
           f"record and its NAV recorded against the want (147.4); `store lake` as e2e/expected.lake ({rows} rows); and a new container "
-          f"recording nothing twice")
+          f"recording nothing twice, its licence read on start")
 
 
 def main():

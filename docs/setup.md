@@ -35,5 +35,5 @@ On the deployment's **Data sources** page (deployment admins):
 
 ## Try it without a token
 
-On a deployment installed for development, **Synthetic mode** serves
+On a deployment installed for development, **Sample data** serves
 invented responses for VIGIX and VOO, with no token.

@@ -54,7 +54,7 @@ def feed(
 ) -> Feed:
     """The plugin's work on the suite's recorder and synthetic Tiingo, at `at`."""
     work = Feed(plugin or Recorder(INSTANCE), RawStore(tmp), now=lambda: at)
-    work.configure(Config(funds=funds, synthetic=True))
+    work.configure(Config(funds=funds, sample_data=True))
     return work
 
 

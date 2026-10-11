@@ -47,11 +47,15 @@ def test_each_page_is_managed_alone(client: PageClient) -> None:
 
 def test_datasets_lists_each_fund_and_what_tiingo_says_it_is(client: PageClient) -> None:
     text = client.get(DATASETS, "admin").text
-    assert "tiingo:daily" in text and "One person" in text
+    # The data role's sections, in its order, then Tiingo's Funds.
+    assert text.index("<h2>Served</h2>") < text.index("<h2>Wants</h2>")
+    assert text.index("<h2>Subjects</h2>") < text.index("<h2>Funds</h2>")
+    assert "tiingo:daily" in text and "kept; personal use" in text
+    assert "Not licensed yet" in text
     assert 'data-ticker="VIGIX" data-served="yes"' in text
     assert 'data-ticker="VOO" data-served="no"' in text and "not a mutual fund (NYSE)" in text
     assert 'data-ticker="NOSUCH" data-served="no"' in text and "not found" in text
-    assert "1 standing" in text and "2026-09-22: 1 recorded" in text
+    assert "Kept current" in text and "2026-09-22" in text
 
 
 def test_datasets_lists_a_fund_read_from_the_record_a_want_named(tmp_path: Path) -> None:
@@ -78,10 +82,18 @@ def test_the_tools_answer_what_the_pages_show(client: PageClient) -> None:
     assert {t.name for t in pages.tools} == {"read_connection", "read_datasets"}
     connection = client.call_tool("read_connection")
     assert connection.outcome == "unchanged"
-    assert connection.data["mode"] == "synthetic" and connection.data["token_set"] is False
-    assert connection.data["requests_last_hour"] >= 0
+    assert connection.data["mode"] == "Sample data"
+    assert connection.data["credentials"] == [{"label": "API token", "set": False}]
+    assert connection.data["sessions"] is None and connection.data["requests_last_hour"] >= 0
     datasets = client.call_tool("read_datasets").data
-    assert datasets["dataset"]["modes"] == ["push", "pull"]
+    (served,) = datasets["served"]
+    assert served["arrives"] == "push, pull" and served["recorded"] >= 1
+    assert served["licensed"] is False and served["last_recorded"]
+    assert [w["state"] for w in datasets["wants"]] == [
+        "Kept current",
+        "Answered, standing",
+        "Answered",
+    ]
     vigix = next(f for f in datasets["funds"] if f["ticker"] == "VIGIX")
     assert vigix["served"] and vigix["latest_recorded"] == "2026-10-09"
     assert vigix["history_from"] == "1998-05-14"
@@ -92,8 +104,12 @@ def test_waiting_for_the_token(tmp_path: Path) -> None:
     work = feed(tmp_path)
     work.configure(Config(funds=(Fund("VIGIX"),), missing=("tiingo_api_token",)))
     hold(work)
-    text = PageClient(pages).get(CONNECTION, "admin").text
-    assert "Waiting for the API token" in text and "Not set" in text
+    client = PageClient(pages)
+    text = client.get(CONNECTION, "admin").text
+    # The role's "not set up yet" state, linking to core's Settings tab.
+    assert "No key yet" in text and 'data-om-opens="settings"' in text
+    assert "API token: not set" in text and "Does not stream" in text
+    assert client.call_tool("read_connection").data["mode"] == "No key"
 
 
 def test_the_token_is_never_shown(tmp_path: Path) -> None:
@@ -104,13 +120,35 @@ def test_the_token_is_never_shown(tmp_path: Path) -> None:
     for path in (CONNECTION, DATASETS):
         assert "abc123secret" not in client.get(path, "admin").text
     assert "abc123secret" not in str(client.call_tool("read_connection").json)
-    assert "Set" in client.get(CONNECTION, "admin").text
+    assert "API token: set" in client.get(CONNECTION, "admin").text
 
 
 def test_before_anything(tmp_path: Path) -> None:
     page_module._held.clear()
-    assert "Waiting for the API token" in PageClient(pages).get(CONNECTION, "admin").text
-    assert "No fund listed" in PageClient(pages).get(DATASETS, "admin").text
+    assert "No key yet" in PageClient(pages).get(CONNECTION, "admin").text
+    text = PageClient(pages).get(DATASETS, "admin").text
+    assert "No fund listed" in text and "No wants yet" in text
+
+
+def test_a_licensed_dataset_is_said_so(client: PageClient) -> None:
+    page_module._held["feed"].status.licensed = frozenset({"tiingo:daily"})
+    (served,) = client.call_tool("read_datasets").data["served"]
+    assert served["licensed"] is True
+
+
+def test_the_figures_are_the_data_roles_in_its_order(client: PageClient) -> None:
+    from tiingo.page import figures
+
+    work = page_module._held["feed"]
+    said = figures(work.status, work)
+    assert [f.label for f in said] == [
+        "Connection",
+        "Entitled at the vendor",
+        "Stream",
+        "Last recorded",
+        "Rate use",
+    ]
+    assert said[0].value == "Sample data" and said[2].value == "Does not stream"
 
 
 def test_the_funds_are_searched(client: PageClient) -> None:
