@@ -26,15 +26,15 @@ PLUGIN_CHECK := meridian-tiingo-plugin-check
 MERIDIAN_VERSION := $(shell sed -n 's/^ *MERIDIAN_VERSION: *\([0-9][0-9.]*\).*/\1/p' .github/workflows/check.yaml)
 
 # The released runtime `make e2e` proves the plugin against, by tag and
-# digest -- core's main at 93f9554, contract v20 --
+# digest -- core's main at 6202b4a, contract v21 --
 # and core's plugin harness published with it, by the same commit's tag and
 # its digest, since a harness and a runtime of different commits may
 # disagree about the dashboard's pages. Moved together by a deliberate
 # commit, when this plugin chooses. `make e2e RUNTIME_IMAGE=...:latest
 # HARNESS_IMAGE=...:latest` tries a newer core; e2e-latest.yaml does that
 # weekly.
-RUNTIME_IMAGE ?= ghcr.io/open-meridian/meridian-runtime:93f9554@sha256:94c44adc1242c7b0932cdd9387e719107920504e806844c31c32bbeb916a2ed1
-HARNESS_IMAGE ?= ghcr.io/open-meridian/meridian-harness:93f9554@sha256:c937810eb6fd8e9fa25ac7f19cedd2042a9cf7b519757b904fc77d890313fb5e
+RUNTIME_IMAGE ?= ghcr.io/open-meridian/meridian-runtime:6202b4a@sha256:854d866396de5f2f0c39b0ad3b1bd8b283f1549bb86d9684db71283988821012
+HARNESS_IMAGE ?= ghcr.io/open-meridian/meridian-harness:6202b4a@sha256:f8346eadc65a5194331af2ee277dddbbdc6bcbeeca7ac196cb7ac7990bed8090
 # The harness's two plugins: this one, as instance tiingo, holding data as
 # pyproject.toml declares; and the reader, a reporting plugin the e2e runs
 # from e2e/reader.py in the same image, holding custody beside it only to
