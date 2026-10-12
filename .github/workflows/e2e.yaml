@@ -5,8 +5,8 @@
 # images pull without a token, and synthetic mode reads only the synthetic
 # Tiingo responses committed with the plugin: no Tiingo token, ever.
 #
-# Red until open-meridian 0.24.0 is on PyPI and its base image on ghcr.io: the
-# plugin's image is built on plugin-python:0.24.0, which a runner cannot pull
+# Red until open-meridian 0.25.0 is on PyPI and its base image on ghcr.io: the
+# plugin's image is built on plugin-python:0.25.0, which a runner cannot pull
 # before the SDK's release. Locally the Makefile builds it from the sibling
 # meridian-python checkout.
 #

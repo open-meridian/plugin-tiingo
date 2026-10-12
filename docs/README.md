@@ -1,6 +1,6 @@
 # The Tiingo plugin's documentation
 
-For the people who set it up and use it. Written for version 0.2.0.
+For the people who set it up and use it. Written for version 0.3.0.
 
 | Page | For |
 |---|---|
