@@ -9,8 +9,11 @@ NAV), bars, a currency's rate, a crypto asset's price, prices on a venue (a
 fund strikes its NAV on no venue), trades and quotes. A case about a field
 of a trade (`about_field`, from contract v20) is about trades, so not
 presented the same way; and so is a restart's gap, backfilled, which is
-about trades. Every other case is presented, its datasets' licences among
-them.
+about trades. Contract v22's calendar cases (`about` calendars and
+settlement dates) are not presented either: the plugin records each NAV on
+the business date Tiingo states, and never reads a settlement calendar or
+asks for a settlement date. Every other case is presented, its datasets'
+licences among them.
 
 `a-subject-another-source-resolved` (contract v18 as ruled 2026-10-10) is
 presented: a fund the book holds from a custodian, its record carrying the
@@ -43,6 +46,10 @@ NEVER = {
     "prices on a venue": "a fund strikes its NAV on no venue",
     "trades": "mutual funds' NAVs only: Tiingo's end-of-day prices state no trades",
     "quotes": "mutual funds' NAVs only: Tiingo's end-of-day prices state no quotes",
+    "calendars": (
+        "records each NAV on the business date Tiingo states: reads no settlement calendar"
+    ),
+    "settlement dates": "records NAVs as published; never computes a settlement date",
 }
 
 NOT_PRESENTED = {
