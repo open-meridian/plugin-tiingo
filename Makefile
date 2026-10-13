@@ -31,15 +31,15 @@ MERIDIAN_BIN ?=
 CLI_CONTEXT := $(if $(MERIDIAN_BIN),--build-context cli=$(MERIDIAN_BIN),)
 
 # The released runtime `make e2e` proves the plugin against, by tag and
-# digest -- core's main at 6202b4a, contract v21 --
+# digest -- core's v22 at 8f03d84, by tag for now --
 # and core's plugin harness published with it, by the same commit's tag and
 # its digest, since a harness and a runtime of different commits may
 # disagree about the dashboard's pages. Moved together by a deliberate
 # commit, when this plugin chooses. `make e2e RUNTIME_IMAGE=...:latest
 # HARNESS_IMAGE=...:latest` tries a newer core; e2e-latest.yaml does that
 # weekly.
-RUNTIME_IMAGE ?= ghcr.io/open-meridian/meridian-runtime:6202b4a@sha256:854d866396de5f2f0c39b0ad3b1bd8b283f1549bb86d9684db71283988821012
-HARNESS_IMAGE ?= ghcr.io/open-meridian/meridian-harness:6202b4a@sha256:f8346eadc65a5194331af2ee277dddbbdc6bcbeeca7ac196cb7ac7990bed8090
+RUNTIME_IMAGE ?= ghcr.io/open-meridian/meridian-runtime:8f03d84
+HARNESS_IMAGE ?= ghcr.io/open-meridian/meridian-harness:8f03d84
 # The harness's two plugins: this one, as instance tiingo, holding data as
 # pyproject.toml declares; and the reader, a reporting plugin the e2e runs
 # from e2e/reader.py in the same image, holding custody beside it only to
