@@ -7,7 +7,6 @@
 # the two together when moving to a new SDK.
 #
 # BASE is for building against a base made locally rather than a released one.
-# PLACEHOLDER until plugin-python:0.28.0 is published with open-meridian 0.28.0.
 ARG BASE=ghcr.io/open-meridian/plugin-python:0.28.0
 FROM ${BASE}
 WORKDIR /plugin
