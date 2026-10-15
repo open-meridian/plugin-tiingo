@@ -16,7 +16,8 @@ of day:
 - `history` none stated: each fund's history starts where Tiingo's meta says,
   shown per fund on the Datasets tab;
 - its day New York's, ending at 16:00 (`America/New_York`, 960), when a fund
-  strikes its NAV;
+  strikes its NAV; its business dates the platform's US equity venues (NYSE
+  markets) calendar's (`calendar_id`, from 0.5.0);
 - no venue: a fund's NAV is struck by the fund, on no venue;
 - the licence Tiingo's free and Power plans give, as the plugin's builders
   read them (README, "The terms"): for internal and personal use, no
@@ -42,6 +43,11 @@ from .settings import DECLARED
 #: The dataset's key: its rows name `<instance>:daily`.
 DAILY = "daily"
 VENDOR = "Tiingo"
+#: The platform's "US equity venues (NYSE markets)" trading calendar, read from
+#: the platform on 2026-10-14 (the v24 plan's O10): a fund strikes its NAV on
+#: the days US equity markets are open, so the lake flags a NAV dated on a
+#: closed day.
+US_EQUITY_CALENDAR = "CAL-01M4VF0F4XGP3RATCCSKDPZSBP"
 #: A day, in seconds.
 CADENCE = 86_400
 
@@ -54,6 +60,7 @@ DAILY_DATASET = DatasetDeclaration(
     licence_default=DatasetLicence(kept=True, derived_use=True, display=True, personal_use=True),
     day_time_zone=DAY_TIME_ZONE,
     day_end_minute=DAY_END_MINUTE,
+    calendar_id=US_EQUITY_CALENDAR,
 )
 
 RESPONSES_KIND = RecordKind(RESPONSES, "Raw responses", window_days=DEFAULT_WINDOW_DAYS)
