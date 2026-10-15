@@ -12,8 +12,9 @@ requires-python = ">=3.11"
 # speaks one version of the contract (v20), and a range would let a rebuild
 # pick up another. The Dockerfile's base is the same version. Tiingo's API
 # is called with the standard library: no third-party dependency.
+# PLACEHOLDER until PyPI publishes open-meridian 0.28.0 (SDK v24, unreleased).
 dependencies = [
-  "open-meridian==0.26.0",
+  "open-meridian==0.28.0",
 ]
 
 [project.urls]
