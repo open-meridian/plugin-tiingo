@@ -138,6 +138,11 @@ image:
 # pages show, and a new container recording nothing twice. e2e/run.py says
 # each step. No Tiingo token, ever.
 # Its own project and no published port; nothing outlives it.
+# E2E_MINTS: the FIGIs the e2e's custodian states of VIGIX and VTSAX
+# (e2e/reader.py), each invented for the e2e. The harness's stand-in platform
+# is told it holds them, so each fund is the platform's INS- record, which the
+# lake wants; a provisional local record it never wants (contract v24, W10.6).
+E2E_MINTS := BBG00E2EVIGX,BBG00E2EVTSX
 e2e: image
 	@rm -rf .e2e && mkdir -p .e2e
 	@# A tag alone, such as latest, can move: take what the registry has now.
@@ -154,7 +159,8 @@ e2e: image
 	@# The harness's copy is removed however the run ends: `meridian plugin
 	@# check` reads every source file under this directory.
 	@trap 'rm -rf .e2e/harness' EXIT; \
-		MERIDIAN_RUNTIME_IMAGE=$(RUNTIME_IMAGE) E2E_DIR="$(CURDIR)/e2e" python3 e2e/run.py
+		MERIDIAN_RUNTIME_IMAGE=$(RUNTIME_IMAGE) E2E_DIR="$(CURDIR)/e2e" \
+		HARNESS_PLATFORM_MINTS=$(E2E_MINTS) python3 e2e/run.py
 
 preview:
 	@$(DOCKER) build $(SDK_CONTEXT) -f Dockerfile.check --target test -t $(CHECK) . >/dev/null 2>&1 \

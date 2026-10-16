@@ -53,10 +53,6 @@ COMPONENTS = ".e2e/components.log"
 COMPOSE = ["docker", "compose", "-p", PROJECT, "-f", ".e2e/harness/compose.yaml",
            "-f", ".e2e/harness/plugins.yaml", "-f", "e2e/plugin.yaml"]
 DATASET = "tiingo:daily"
-# The FIGIs the custodian states of VIGIX and VTSAX (e2e/reader.py), each
-# invented for the e2e: the harness's stand-in platform is told it holds
-# them, so it mints each fund's INS- record (contract v24, W3.4).
-os.environ["HARNESS_PLATFORM_MINTS"] = "BBG00E2EVIGX,BBG00E2EVTSX"
 
 
 class Failed(Exception):

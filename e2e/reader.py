@@ -19,7 +19,7 @@ It answers its page as JSON, so the harness's runner can read it
       source must state from contract v24 (W3.7). The FIGI is the open
       identifier the platform's master matches: the harness's stand-in
       platform is told the two invented FIGIs (`HARNESS_PLATFORM_MINTS`, set
-      by e2e/run.py) and mints each fund's INS- record, so its NAVs are
+      by the Makefile's e2e) and mints each fund's INS- record, so its NAVs are
       priced and wanted -- a provisional local record never is (W10.6). The
       reader holds `custody` beside `reporting` only to name them so.
 
@@ -40,7 +40,7 @@ PORT = 8088
 LOOP = asyncio.new_event_loop()
 #: The two funds as a custodian's book holds them, never resolved by Tiingo's
 #: plugin: each FIGI invented for the e2e, the one the stand-in platform is
-#: told it holds (e2e/run.py).
+#: told it holds (the Makefile's E2E_MINTS).
 CUSTODIANS = {
     "VIGIX": (
         [
