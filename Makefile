@@ -46,7 +46,13 @@ HARNESS_IMAGE ?= ghcr.io/open-meridian/meridian-harness:CORE-V25-PLACEHOLDER
 # pyproject.toml declares; and the reader, a reporting plugin the e2e runs
 # from e2e/reader.py in the same image, holding custody beside it only to
 # name a custodian's record.
-PLUGINS := [{"instance": "tiingo", "image": "$(IMAGE)", "roles": ["data"]}, {"instance": "reader", "image": "$(IMAGE)", "roles": ["custody", "reporting"]}]
+# The declaration [tool.meridian] names (contract v25): `make e2e` prints it
+# from the image under test, as `meridian plugin upload` reads it, and the
+# harness holds the plugin's registration to it (its README, `declaration`).
+# Each stand-in's the same, its directory mounted as it runs.
+DECLARATION_REF := $(shell sed -n 's/^declaration *= *"\(.*\)"/\1/p' pyproject.toml)
+DECLARE := docker run --rm --network none --entrypoint meridian-declaration
+PLUGINS := [{"instance": "tiingo", "image": "$(IMAGE)", "roles": ["data"], "declaration": "declaration.json"}, {"instance": "reader", "image": "$(IMAGE)", "roles": ["custody", "reporting"], "declaration": "reader.json"}]
 
 # The kit's built files, where `make preview SHOTS=...` serves them beside
 # the pages for the browser: a meridian-ui checkout's dist/.
@@ -127,8 +133,8 @@ image:
 	@docker run --rm --entrypoint python $(IMAGE) -c \
 		"import meridian, tiingo.__main__, tiingo.page; from tiingo.vendor import SyntheticTiingo; SyntheticTiingo()" \
 		|| { echo "image FAILED: it does not import the SDK, itself and its synthetic responses" >&2; exit 1; }
-	@[ -z "$$(docker run --rm --entrypoint sh $(IMAGE) -c 'ls -A /plugin')" ] \
-		|| { echo "image FAILED: /plugin holds files; only the installed package belongs" >&2; exit 1; }
+	@[ "$$(docker run --rm --entrypoint sh $(IMAGE) -c 'ls -A /plugin')" = "docs" ] \
+		|| { echo "image FAILED: /plugin holds files beyond docs/; only the installed package and its documentation belong" >&2; exit 1; }
 	@echo "image OK: $(IMAGE) on $(BASE), $$(docker image inspect -f '{{.Size}}' $(IMAGE) | awk '{printf "%.0f MB", $$1/1e6}')"
 
 # The plugin on the plugin harness published with the runtime it pins (the
@@ -155,6 +161,10 @@ e2e: image
 		&& docker cp "$$id:/harness" .e2e/harness >/dev/null \
 		&& docker rm "$$id" >/dev/null \
 		|| { echo "e2e FAILED: no plugin harness at /harness in $(HARNESS_IMAGE)" >&2; exit 1; }
+	@$(DECLARE) $(IMAGE) $(DECLARATION_REF) >.e2e/harness/declaration.json 2>>.e2e/components.log \
+		|| { rm -rf .e2e/harness; echo "e2e FAILED: meridian-declaration did not print $(DECLARATION_REF) (declaration.json)" >&2; exit 1; }
+	@$(DECLARE) -v "$(CURDIR)/e2e":/e2e:ro -e PYTHONPATH=/e2e $(IMAGE) reader:DECLARATION >.e2e/harness/reader.json 2>>.e2e/components.log \
+		|| { rm -rf .e2e/harness; echo "e2e FAILED: meridian-declaration did not print reader:DECLARATION (reader.json)" >&2; exit 1; }
 	@printf '%s\n' '$(PLUGINS)' | docker run --rm -i -v "$(CURDIR)/.e2e/harness":/harness:ro python:3.12-alpine \
 		python /harness/harness.py compose >.e2e/harness/plugins.yaml 2>>.e2e/components.log \
 		|| { echo "e2e FAILED: the harness did not write its plugins" >&2; exit 1; }
