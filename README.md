@@ -4,12 +4,12 @@ An [Open Meridian](https://open-meridian.com) plugin that puts mutual funds'
 daily net asset values from [Tiingo](https://www.tiingo.com) into a
 deployment's lake: each fund you list, its NAV for each business day, so a
 reporting plugin can value a fund no exchange prices, such as VIGIX. It holds
-the `data` role, a data plugin. This is release 0.4.0, not released yet. How to set it up and
+the `data` role, a data plugin. This is release 0.5.0, not released yet. How to set it up and
 use it is in [docs/](docs/README.md); how a plugin like it is built is
 documented at [open-meridian.dev](https://open-meridian.dev).
 
-It is built on the SDK it pins, `open-meridian==0.26.0`, which declares
-contract v22; its work is the lake prices the book (meridian-design
+It is built on the SDK it pins, `open-meridian==0.28.0`, which declares
+contract v24 (not yet on PyPI); its work is the lake prices the book (meridian-design
 `plans/the-lake-prices-the-book.md`, row 14).
 
 ## What it records
@@ -89,15 +89,19 @@ for the reader, both tools answering what the pages show, and a new
 container recording nothing twice and reading its licence on start.
 
 **The data suite.** `tests/test_suite.py` runs the SDK's suite on the
-plugin's own conversion, and it passes: seven cases are presented, a fund
+plugin's own conversion, and it passes: seven cases are presented (and the
+SDK answers contract v24's replacement and template-catalogue cases), a fund
 known only by another source's identifiers and its dataset's licences
 among them; every other case is about a kind of data a fund's NAV is not
 (a close, a bar, an FX rate, a crypto asset, a venue, trades, quotes), and
 is not presented, with why, as the suite lets it. So are contract v22's
 calendar cases: the plugin records each NAV on the business date Tiingo
-states, and never reads a settlement calendar or asks for a settlement date.
+states, and never reads a settlement calendar or asks for a settlement date;
+and contract v23's outcomes, a fund being no event contract. From 0.5.0 the
+dataset names the platform's US equity venues (NYSE markets) calendar, so the
+lake flags a NAV dated on a day it says is closed.
 
-**CI is red until open-meridian 0.26.0 is on PyPI** and its base image on
+**CI is red until open-meridian 0.28.0 is on PyPI** and its base image on
 ghcr.io: the runners install the pin from there. Locally the Makefile builds
 both from the sibling meridian-python checkout.
 

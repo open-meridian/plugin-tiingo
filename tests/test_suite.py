@@ -12,8 +12,9 @@ presented the same way; and so is a restart's gap, backfilled, which is
 about trades. Contract v22's calendar cases (`about` calendars and
 settlement dates) are not presented either: the plugin records each NAV on
 the business date Tiingo states, and never reads a settlement calendar or
-asks for a settlement date. Every other case is presented, its datasets'
-licences among them.
+asks for a settlement date; nor are contract v23's outcomes (no event
+contract). Every other case is presented, its datasets' licences among them,
+and contract v24's two every-role cases are the SDK's.
 
 `a-subject-another-source-resolved` (contract v18 as ruled 2026-10-10) is
 presented: a fund the book holds from a custodian, its record carrying the
@@ -50,6 +51,9 @@ NEVER = {
         "records each NAV on the business date Tiingo states: reads no settlement calendar"
     ),
     "settlement dates": "records NAVs as published; never computes a settlement date",
+    # Contract v23: an event contract's outcome.
+    "outcomes": "mutual funds' NAVs only: no event contract, so no outcome",
+    "disputed outcomes": "mutual funds' NAVs only: no event contract, so no outcome",
 }
 
 NOT_PRESENTED = {
@@ -142,7 +146,12 @@ def test_the_data_suite_passes(tmp_path: Path) -> None:
     report = run("data", producers(tmp_path), not_presented=NOT_PRESENTED, instance_id="tiingo")
     assert report.passed, report.failures
     assert sorted(report.not_presented) == sorted(NOT_PRESENTED)
-    assert len(report.passed_cases) == 7
+    # Contract v24: the two cases every suite holds, which the SDK answers.
+    assert len(report.passed_cases) == 9
+    assert report.answered_by_sdk == [
+        "hears-and-reads-a-replacement",
+        "reads-the-template-catalogue",
+    ]
 
 
 def test_a_nav_never_passes_through_a_float(tmp_path: Path) -> None:
@@ -158,3 +167,13 @@ def test_a_nav_never_passes_through_a_float(tmp_path: Path) -> None:
         for p in recorder.on("RecordPrices")[0].prices
     }
     assert amounts["VIGIX:2026-10-08"] == "245.55"
+
+
+def test_the_daily_dataset_names_the_us_equity_calendar() -> None:
+    """v24 (the plan's O10): the NAVs' business dates follow the platform's
+    US equity venues (NYSE markets) calendar."""
+    from tiingo.declaration import DAILY_DATASET, US_EQUITY_CALENDAR
+
+    assert US_EQUITY_CALENDAR == "CAL-01M4VF0F4XGP3RATCCSKDPZSBP"
+    assert DAILY_DATASET.calendar_id == US_EQUITY_CALENDAR
+    assert DAILY_DATASET._to_json()["calendar_id"] == US_EQUITY_CALENDAR

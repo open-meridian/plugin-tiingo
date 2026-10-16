@@ -1,5 +1,5 @@
 """`make e2e`: the plugin on the plugin harness of the runtime it pins
-(contract v18), beside `reader`, a reporting plugin (e2e/reader.py) entitled
+(contract v24), beside `reader`, a reporting plugin (e2e/reader.py) entitled
 to its dataset, and the harness's admin. Run from the repository's root by
 the Makefile, which builds the image and writes the harness's plugins first;
 standard library only. No Tiingo token is ever set: the plugin's hosts file
@@ -7,24 +7,32 @@ sends Tiingo's API nowhere, and sample data reads invented responses.
 
 1. No key: with no token, Connection says "No key yet" (the data role's
    "not set up yet" state), and nothing is recorded.
-2. Sample data on, three funds listed: VIGIX, a mutual fund, resolved and
-   its last days' NAVs recorded; VOO, an ETF, not served; NOSUCH, which
-   Tiingo does not know.
+2. Sample data on, three funds listed: VIGIX, a mutual fund, its row naming
+   the record a custodian's book holds it under -- the platform's INS-
+   record, matched by its FIGI -- and its last days' NAVs recorded; VOO, an
+   ETF, not served; NOSUCH, which Tiingo does not know. From contract v24
+   the lake wants only a record the platform's master holds, never a
+   provisional local one (W10.6), and Tiingo states no identifier the
+   platform matches: its symbol alone resolves to a local record, so the
+   fund wanted is named by the custodian's record, as the Funds table's
+   instrument column offers.
 3. Parity: through the deployment's MCP, `read_connection` and
    `read_datasets` answer what the pages show under the data role's names
    (contract v20), the token said to be unset and
    never shown; and core's `dashboard__list_datasets` lists `tiingo:daily` as
    the catalogue declares it: push and pull, daily, New York's day ending at
    16:00, one person's terms.
-4. Licensed (one person's terms) and the reader entitled.
+4. Licensed (one person's terms) and the reader entitled (the admin was
+   granted read on it at step 2, to open its page).
 5. Read back: VIGIX's NAV on 8 October 2026, 245.55 in dollars' cash
    instrument, kind nav, version 1.
 6. Wanted: 22 September, not recorded, is asked of the plugin and recorded
    against the want; 12 October, which has no NAV yet, is declined
    `source_silent`.
 7. Another source's record: VTSAX, listed in no Funds row and known to the
-   deployment only as a custodian's book holds it (its CUSIP and the
-   custodian's symbol), is wanted; the plugin reads the record (W3.6, a
+   deployment only as a custodian's book holds it (its CUSIP, its FIGI and
+   the custodian's symbol, the platform's INS- record by the FIGI), is
+   wanted; the plugin reads the record (W3.6, a
    data plugin's from contract v18 as ruled 2026-10-10), finds a mutual fund at
    Tiingo and records its NAV against the want: 147.4, keyed VTSAX's way;
    Datasets lists it, read from the record.
@@ -101,6 +109,16 @@ def prices(subject, day):
     return json.loads(body)
 
 
+def custodians(fund):
+    """The deployment's record of `fund` as the custodian's book holds it:
+    the platform's, never a provisional local one."""
+    said = json.loads(page("reader", "read", f"/resolve?fund={fund}"))
+    held = said.get("instrument_id", "")
+    must(held.startswith("INS-") and not said.get("provisional"),
+         f"the custodian's {fund} is the platform's record: {said}")
+    return held
+
+
 def call(tool, arguments=None):
     done = runner("mcp", "call", tool, json.dumps(arguments or {}), check=False)
     try:
@@ -138,9 +156,12 @@ def run():
     runner("page", "--level", "admin", "/", "--until", "No key yet", "--seconds", "90")
     must("row|" not in store_lake(), "step 1, nothing recorded without a token")
 
-    # 2. Sample data, three funds.
-    runner("settings", "sample_data=true", "funds[0].ticker=VIGIX", "funds[1].ticker=VOO",
-           "funds[2].ticker=NOSUCH")
+    # 2. Sample data, three funds, VIGIX's row naming the custodian's record:
+    # the admin granted read on the reader first, to open its page.
+    runner("grant", "--instance", "reader", "--level", "read", "--role", "reporting")
+    vigix = custodians("VIGIX")
+    runner("settings", "sample_data=true", "funds[0].ticker=VIGIX", f"funds[0].instrument={vigix}",
+           "funds[1].ticker=VOO", "funds[2].ticker=NOSUCH")
     runner("page", "--level", "admin", "/datasets", "--until", 'data-ticker="VIGIX" data-served="yes"',
            "--seconds", "120")
     until(60, lambda: store_lake().count("row|tiingo:daily|price|") >= 8,
@@ -163,7 +184,8 @@ def run():
          and funds["VOO"]["at_tiingo"] == "not a mutual fund (NYSE)" and not funds["VOO"]["served"]
          and funds["NOSUCH"]["at_tiingo"] == "not found",
          f"step 3, read_datasets: {funds}")
-    vigix = funds["VIGIX"]["instrument_id"]
+    must(funds["VIGIX"]["instrument_id"] == vigix,
+         f"step 3, VIGIX is served under the custodian's record: {funds['VIGIX']}")
     must(vigix in page("tiingo", "admin", "/datasets"), "step 3, Datasets shows what read_datasets answers")
     listed = {d["dataset"]: d for d in call("dashboard__list_datasets")["datasets"]}
     held = listed.get(DATASET, {})
@@ -177,7 +199,6 @@ def run():
     runner("licence", DATASET, "kept=true", "retention_days=0", "derived_use=true", "display=true",
            "personal_use=true", "note=Tiingo's free plan: one person's use.")
     runner("entitle", "--instance", "reader", DATASET, "note=The e2e's reader reads the NAVs.")
-    runner("grant", "--instance", "reader", "--level", "read", "--role", "reporting")
 
     # 5. Read back.
     read = until(60, lambda: (lambda r: r if r["prices"] else None)(prices(vigix, "2026-10-08")),
@@ -199,7 +220,7 @@ def run():
     until(90, lambda: "|declined|" in store_lake(), "step 6, 12 October was not declined")
 
     # 7. Another source's record, read and its NAV recorded.
-    vtsax = json.loads(page("reader", "read", "/resolve"))["vtsax"]
+    vtsax = custodians("VTSAX")
     must(vtsax and vtsax != vigix, f"step 7, the custodian's VTSAX is its own record: {vtsax}")
     prices(vtsax, "2026-10-08")
     held = until(90, lambda: (lambda r: r if r["prices"] else None)(prices(vtsax, "2026-10-08")),
@@ -235,12 +256,12 @@ def run():
 
     rows = got.count("row|")
     print(f"e2e OK in {int(time.time() - started)}s on the plugin harness, no Tiingo token: no key "
-          f"said with none, nothing recorded; sample data with VIGIX, VOO and NOSUCH listed, VIGIX "
-          f"alone served (VOO an ETF, NOSUCH not found); read_connection and read_datasets answering "
+          f"said with none, nothing recorded; sample data with VIGIX (the custodian's INS- record), VOO and NOSUCH "
+          f"listed, VIGIX alone served (VOO an ETF, NOSUCH not found); read_connection and read_datasets answering "
           f"what the pages show, the token said unset and never shown; core listing {DATASET} as "
           f"declared, one person's terms; licensed and entitled; VIGIX's NAV on 8 October read back "
           f"at 245.55 in dollars, kind nav; 22 September wanted and recorded, 12 October declined "
-          f"source silent; VTSAX, known only by a custodian's CUSIP and symbol, read from its "
+          f"source silent; VTSAX, known only by a custodian's CUSIP, FIGI and symbol, read from its "
           f"record and its NAV recorded against the want (147.4); `store lake` as e2e/expected.lake ({rows} rows); and a new container "
           f"recording nothing twice, its licence read on start")
 
