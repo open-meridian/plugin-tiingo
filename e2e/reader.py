@@ -12,10 +12,16 @@ It answers its page as JSON, so the harness's runner can read it
       what the lake left unanswered, with why;
   /datasets
       the datasets it may read;
-  /resolve
-      the deployment's record of VTSAX as a custodian's book holds it, by its
-      CUSIP and the custodian's symbol alone (W3.1): the reader holds
-      `custody` beside `reporting` only to name it so.
+  /resolve?fund=TICKER
+      the deployment's record of VIGIX or VTSAX as a custodian's book holds
+      it (W3.1): by the custodian's symbol and the fund's FIGI -- VTSAX by its
+      CUSIP too -- with the custodian's description and currency, what a
+      source must state from contract v24 (W3.7). The FIGI is the open
+      identifier the platform's master matches: the harness's stand-in
+      platform is told the two invented FIGIs (`HARNESS_PLATFORM_MINTS`, set
+      by e2e/run.py) and mints each fund's INS- record, so its NAVs are
+      priced and wanted -- a provisional local record never is (W10.6). The
+      reader holds `custody` beside `reporting` only to name them so.
 
 Standard library and the SDK only; every amount stays text, never a float.
 """
@@ -32,11 +38,26 @@ from meridian.plugin.v1 import operations_pb2 as ops
 
 PORT = 8088
 LOOP = asyncio.new_event_loop()
-#: VTSAX as a custodian's book holds it, never resolved by Tiingo's plugin.
-CUSTODIANS = [
-    ops.Identifier(scheme="cusip", value="922908728"),
-    ops.Identifier(scheme="symbol", value="VTSAX", source="e2e-custodian"),
-]
+#: The two funds as a custodian's book holds them, never resolved by Tiingo's
+#: plugin: each FIGI invented for the e2e, the one the stand-in platform is
+#: told it holds (e2e/run.py).
+CUSTODIANS = {
+    "VIGIX": (
+        [
+            ops.Identifier(scheme="figi", value="BBG00E2EVIGX"),
+            ops.Identifier(scheme="symbol", value="VIGIX", source="e2e-custodian"),
+        ],
+        "Vanguard Growth Index Fund Institutional Shares",
+    ),
+    "VTSAX": (
+        [
+            ops.Identifier(scheme="cusip", value="922908728"),
+            ops.Identifier(scheme="figi", value="BBG00E2EVTSX"),
+            ops.Identifier(scheme="symbol", value="VTSAX", source="e2e-custodian"),
+        ],
+        "Vanguard Total Stock Market Index Fund Admiral Shares",
+    ),
+}
 
 
 def price_json(price):
@@ -79,15 +100,25 @@ class Reader:
             ],
         }
 
-    async def resolve(self):
-        found = await self.plugin.resolve_identifier(identifiers=CUSTODIANS)
+    async def resolve(self, query):
+        fund = query.get("fund", [""])[0].upper()
+        if fund not in CUSTODIANS:
+            raise RuntimeError(f"the custodian holds no {fund!r}")
+        identifiers, description = CUSTODIANS[fund]
+        found = await self.plugin.resolve_identifier(
+            identifiers=identifiers,
+            stated_asset_class="fund",
+            stated_currency="USD",
+            stated_description=description,
+        )
         if not found.instrument_id:
-            raise RuntimeError(f"the custodian's VTSAX did not resolve: {found}")
-        return {"vtsax": found.instrument_id}
+            raise RuntimeError(f"the custodian's {fund} did not resolve: {found}")
+        return {"instrument_id": found.instrument_id,
+                "provisional": getattr(found, "provisional", False)}
 
     async def answer(self, path, query):
         if path == "/resolve":
-            return await self.resolve()
+            return await self.resolve(query)
         if path == "/prices":
             return await self.prices(query)
         if path == "/datasets":
