@@ -38,8 +38,10 @@ CLI_CONTEXT := $(if $(MERIDIAN_BIN),--build-context cli=$(MERIDIAN_BIN),)
 # commit, when this plugin chooses. `make e2e RUNTIME_IMAGE=...:latest
 # HARNESS_IMAGE=...:latest` tries a newer core; e2e-latest.yaml does that
 # weekly.
-RUNTIME_IMAGE ?= ghcr.io/open-meridian/meridian-runtime:6eb6887@sha256:68d54f7b0218e3aec9d2c2aa899533a068c458b253c12ac3da08a6b573a76fab
-HARNESS_IMAGE ?= ghcr.io/open-meridian/meridian-harness:6eb6887@sha256:5eff46fe1ccc08ad380d9fbd27511bfa134f1277332667c50f8d2825c54849d5
+# PLACEHOLDER (v25): core v25's runtime and harness are not published yet; re-pin both
+# by tag and digest to what core's v25 merge publishes before this merges.
+RUNTIME_IMAGE ?= ghcr.io/open-meridian/meridian-runtime:CORE-V25-PLACEHOLDER
+HARNESS_IMAGE ?= ghcr.io/open-meridian/meridian-harness:CORE-V25-PLACEHOLDER
 # The harness's two plugins: this one, as instance tiingo, holding data as
 # pyproject.toml declares; and the reader, a reporting plugin the e2e runs
 # from e2e/reader.py in the same image, holding custody beside it only to
