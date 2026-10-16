@@ -25,16 +25,14 @@ from typing import Any
 
 import meridian
 
-from .declaration import DECLARATION
+from .declaration import DECLARATION, PORT
 from .feed import Feed
-from .page import TITLE, figures, hold, pages
+from .page import figures, hold, pages
 from .raw import RawStore
-from .settings import DECLARED, Config, config_from
+from .settings import Config, config_from
 
 log = logging.getLogger("tiingo")
 
-#: The port the pages are served on, beside the sidecar.
-PORT = 8000
 #: How often each fund's last days are read, in seconds: every six hours.
 CHECK_SECONDS = 6 * 3600
 #: How long before a broken settings stream is asked again, in seconds.
@@ -122,13 +120,10 @@ async def run() -> None:
     for stop in (signal.SIGTERM, signal.SIGINT):
         loop.add_signal_handler(stop, stopped.set)
 
-    async with await meridian.connect(
-        # Two pages, under Manage alone: a data plugin's pages are its admin's.
-        interface=meridian.Interface(port=PORT, title=TITLE, pages=pages),
-        settings=DECLARED,
-        # Its catalogue, its storage and its settings (contract v18).
-        declaration=DECLARATION,
-    ) as plugin:
+    # The version's whole declaration (declaration.py): its settings, its
+    # pages with the levels each serves and their tools, and its documentation.
+    # A version registers exactly what it was uploaded with (contract v25).
+    async with await meridian.connect(declaration=DECLARATION) as plugin:
         log.info("registered as %s, roles %s", plugin.identity.instance_id, plugin.identity.roles)
         feed = Feed(plugin, RawStore())
         hold(feed)

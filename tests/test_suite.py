@@ -103,7 +103,9 @@ def producers(tmp: Path) -> dict[str, Callable[[Recorder], Awaitable[None]]]:
             "ResolveIdentifier",
             lambda p: ops.ResolveIdentifierResult(
                 found=True,
-                instrument_id=CUSTODIAN if len(p.identifiers) == 2 else "LCL-VIGIX",
+                instrument_id=CUSTODIAN
+                if any(i.value == "VTSAX" for i in p.identifiers)
+                else "LCL-VIGIX",
             ),
         )
         feed = work(recorder)
@@ -172,7 +174,7 @@ def test_a_nav_never_passes_through_a_float(tmp_path: Path) -> None:
 def test_the_daily_dataset_names_the_us_equity_calendar() -> None:
     """v24 (the plan's O10): the NAVs' business dates follow the platform's
     US equity venues (NYSE markets) calendar."""
-    from tiingo.declaration import DAILY_DATASET, US_EQUITY_CALENDAR
+    from tiingo.declared import DAILY_DATASET, US_EQUITY_CALENDAR
 
     assert US_EQUITY_CALENDAR == "CAL-01M4VF0F4XGP3RATCCSKDPZSBP"
     assert DAILY_DATASET.calendar_id == US_EQUITY_CALENDAR

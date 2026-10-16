@@ -147,7 +147,7 @@ def named(lines, names):
 
 def run():
     started = time.time()
-    compose("down", "-v", "--remove-orphans", check=False)
+    compose("--profile", "runner", "down", "-v", "--remove-orphans", check=False)
     compose("up", "-d")
     runner("ready")
     runner("ready", "--instance", "reader")
@@ -274,11 +274,11 @@ def main():
     except (Failed, subprocess.TimeoutExpired, KeyError, ValueError, IndexError, TypeError) as failed:
         with open(COMPONENTS, "a", encoding="utf-8") as kept:
             kept.write(compose("logs", "--no-color", check=False).stdout)
-        compose("down", "-v", "--remove-orphans", check=False)
+        compose("--profile", "runner", "down", "-v", "--remove-orphans", check=False)
         print(f"e2e FAILED: {failed}; the runner's log is in {LOG}, the components' in {COMPONENTS}",
               file=sys.stderr)
         return 1
-    compose("down", "-v", "--remove-orphans", check=False)
+    compose("--profile", "runner", "down", "-v", "--remove-orphans", check=False)
     return 0
 
 

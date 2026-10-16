@@ -2,9 +2,9 @@
 
 ## Who checks this plugin
 
-**Nobody but you.** This plugin is in your deployment's local registry,
-which is unsupervised: the platform checks nothing about it, and whoever
-installs it carries its risk. Naming it anywhere is not an endorsement. The
+Whoever installs it carries its risk. Wherever it is listed, the listing is
+not an endorsement; the registry it came from says what, if anything, it
+checked. The
 [Platform Terms](https://open-meridian.com/terms) govern.
 
 ## Tiingo's terms
@@ -21,6 +21,11 @@ which change. Not legal advice.
 - The free plan allows 50 requests an hour, 1,000 a day and 500 symbols a
   month; the plugin keeps inside them.
 - Mutual funds' NAVs arrive after midnight New York time.
+
+OpenFIGI is a third party too. The fund's ticker, and nothing else of
+yours, is sent to it, under the deployment's own access: its terms are at
+[openfigi.com](https://www.openfigi.com), and its key, where the deployment
+has one, is a secret setting sent only to OpenFIGI.
 
 The dataset's licence on your Data sources page is what your deployment
 records; neither the plugin nor this page says whether your use meets

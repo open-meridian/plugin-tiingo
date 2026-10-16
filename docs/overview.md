@@ -6,6 +6,8 @@ York. No exchange's data carries it, so a book holding a fund such as VIGIX
 cannot be valued from closes alone. Tiingo publishes funds' NAVs, and its
 free plan is enough for a few funds.
 
+It is a data plugin: its first-use path, its two pages and its Summary figures are every data plugin's, described once on [Using a data plugin](https://open-meridian.dev/how-to/using-a-data-plugin/). These sections cover what is Tiingo's own.
+
 This plugin reads each fund you list from Tiingo and records its NAV for each
 business day in your deployment's lake, where a reporting plugin values your
 positions.
@@ -16,6 +18,15 @@ positions.
   states it.
 - Only mutual funds: a ticker Tiingo files as an ETF or a stock is shown on
   the Datasets tab and not recorded.
+
+## How a fund meets its record
+
+Tiingo names a fund by its ticker alone, and a ticker is no open identifier.
+So each ticker is first mapped through OpenFIGI to the fund's FIGIs, which
+the plugin states beside Tiingo's symbol when it resolves the fund, so the
+fund meets the platform's record for it and the NAV values the position you
+hold. Where OpenFIGI finds no instrument, or more than one, nothing is
+guessed: the fund is resolved by Tiingo's symbol alone.
 
 ## When NAVs arrive
 

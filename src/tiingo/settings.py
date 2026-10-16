@@ -5,6 +5,10 @@
   the dashboard's Settings form, sent only to Tiingo, in a header; never
   logged, shown, kept or put in an address. Its name follows the retail
   plugins' (`alpaca_api_key_id`): the vendor's, then what it is.
+- **OpenFIGI API key** (`openfigi_api_key`), secret and optional: the
+  deployment's own OpenFIGI key, with which each fund's ticker is mapped to
+  its FIGIs at OpenFIGI's higher limits (figi.py, decision 64); without one,
+  at its keyless limits. Sent only to OpenFIGI, in a header.
 - **Funds** (`funds`), a table: each mutual fund to keep NAVs for, by its
   ticker (`VIGIX`), and, where its ticker alone does not find it, the
   deployment's own record for it (an instrument column, picked by search):
@@ -32,6 +36,7 @@ import meridian
 from .raw import DEFAULT_WINDOW_DAYS, RESPONSES
 
 TOKEN = "tiingo_api_token"
+OPENFIGI_KEY = "openfigi_api_key"
 FUNDS = "funds"
 TICKER = "ticker"
 INSTRUMENT = "instrument"
@@ -54,6 +59,15 @@ class Declared:
         description=(
             "From your Tiingo account's API page. Tiingo's free plan suffices for a few "
             "funds' daily NAVs; its terms are for your internal and personal use."
+        ),
+    )
+    openfigi_api_key: str = meridian.setting(
+        "OpenFIGI API key",
+        secret=True,
+        description=(
+            "Optional: your OpenFIGI API key, from your OpenFIGI account. Each fund's ticker is "
+            "mapped to its FIGIs through OpenFIGI so it meets the platform's record; without a "
+            "key, at OpenFIGI's lower keyless limits."
         ),
     )
     funds: list[dict[str, str]] = meridian.setting(
@@ -97,6 +111,7 @@ class Fund:
 @dataclass(frozen=True)
 class Config:
     token: str = field(default="", repr=False)
+    openfigi_key: str = field(default="", repr=False)
     funds: tuple[Fund, ...] = ()
     sample_data: bool = False
     window_days: int = DEFAULT_WINDOW_DAYS
@@ -112,6 +127,7 @@ class Config:
 def config_from(values: Mapping[str, object], missing: Collection[str] = ()) -> Config:
     """The configuration a delivery of the settings says."""
     token = values.get(TOKEN)
+    figi_key = values.get(OPENFIGI_KEY)
     rows = values.get(FUNDS)
     funds: dict[str, Fund] = {}
     for row in rows if isinstance(rows, list) else []:
@@ -122,6 +138,7 @@ def config_from(values: Mapping[str, object], missing: Collection[str] = ()) -> 
     past = values.get(PAST_WINDOW)
     return Config(
         token=token.strip() if isinstance(token, str) else "",
+        openfigi_key=figi_key.strip() if isinstance(figi_key, str) else "",
         funds=tuple(funds.values()),
         sample_data=values.get(SAMPLE_DATA) is True,
         window_days=window if isinstance(window, int) and window > 0 else DEFAULT_WINDOW_DAYS,
