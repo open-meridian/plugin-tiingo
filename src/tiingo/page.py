@@ -34,7 +34,7 @@ import meridian
 from meridian.roles import data
 
 from . import records
-from .declaration import DAILY_DATASET, mode_name
+from .declared import DAILY_DATASET, mode_name
 from .feed import Feed, FundState, Status
 from .settings import MOST_FUNDS
 from .vendor import BASE, FREE_PLAN, MOST_A_DAY, MOST_AN_HOUR, MUTUAL_FUNDS
@@ -121,7 +121,7 @@ def connection_read(status: Status, feed: Feed | None) -> records.ConnectionRead
         calls=status.fetches,
         rate_limited=status.rate_limited,
         last_call_at=_iso(status.checked_at),
-        last_error=status.error,
+        last_error=status.error or (f"OpenFIGI: {status.figi_error}" if status.figi_error else ""),
         sessions=None,
         state=state,
         said=said,
@@ -222,6 +222,10 @@ def datasets_read(status: Status, feed: Feed | None) -> records.DatasetsRead:
                 miss=f.miss.replace("_", " "),
                 history_from=f.start,
                 latest_recorded=f.latest,
+                figi=f.figis.figi if f.figis else "",
+                at_openfigi=(
+                    "mapped" if f.figis else "none found" if f.figi_asked else "not asked yet"
+                ),
             )
             for f in sorted(
                 [*status.funds.values(), *status.read.values()],

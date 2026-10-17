@@ -8,8 +8,8 @@ the `data` role, a data plugin. This is release 0.5.0, not released yet. How to 
 use it is in [docs/](docs/README.md); how a plugin like it is built is
 documented at [open-meridian.dev](https://open-meridian.dev).
 
-It is built on the SDK it pins, `open-meridian==0.28.0`, which declares
-contract v24 (not yet on PyPI); its work is the lake prices the book (meridian-design
+It is built on the SDK it pins, `open-meridian==0.29.0`, which declares
+contract v25 (its whole declaration, and docs/, which a deployment shows on its Documentation tab; each fund's ticker mapped to its FIGIs through OpenFIGI); its work is the lake prices the book (meridian-design
 `plans/the-lake-prices-the-book.md`, row 14).
 
 ## What it records
@@ -25,7 +25,9 @@ contract v24 (not yet on PyPI); its work is the lake prices the book (meridian-d
   are the equity datasets'); a ticker Tiingo does not know is shown as not
   found.
 - **Each fund resolved** to the deployment's record: the one its row in the
-  Funds setting names, or its ticker as Tiingo's symbol, a miss reported;
+  Funds setting names, or its ticker as Tiingo's symbol beside each FIGI
+  OpenFIGI maps the ticker to under the deployment's access (`figi.py`,
+  decision 64), so it meets the platform's record, a miss reported;
   every resolve as of the moment it is asked. No currency is resolved here:
   a NAV names its dollars by code, and core resolves the code to the
   platform master's currency, pulled, never a stub the plugin minted.
@@ -44,6 +46,10 @@ to backfill.
 
 - **API token** (`tiingo_api_token`), secret: your own Tiingo account's
   token, entered by you in the dashboard. Sent only to Tiingo, in a header.
+- **OpenFIGI API key** (`openfigi_api_key`), secret and optional: the
+  deployment's own OpenFIGI key, for OpenFIGI's higher limits; without it,
+  each ticker is mapped at OpenFIGI's keyless limits. Sent only to OpenFIGI,
+  in a header. Tests and sample data never call OpenFIGI.
 - **Funds** (`funds`), a table: each fund's ticker, and optionally the
   deployment's record for it (the one your custodian's positions name).
   A fund your book already holds from a custodian needs no row: when a
@@ -101,8 +107,8 @@ and contract v23's outcomes, a fund being no event contract. From 0.5.0 the
 dataset names the platform's US equity venues (NYSE markets) calendar, so the
 lake flags a NAV dated on a day it says is closed.
 
-**CI is red until open-meridian 0.28.0 is on PyPI** and its base image on
-ghcr.io: the runners install the pin from there. Locally the Makefile builds
+**open-meridian 0.29.0 is on PyPI** and its base image on ghcr.io: the
+runners install the pin from there. Locally the Makefile builds
 both from the sibling meridian-python checkout.
 
 ## The terms, summarised

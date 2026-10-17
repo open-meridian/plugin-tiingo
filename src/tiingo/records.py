@@ -75,6 +75,11 @@ class FundRead:
     miss: str
     history_from: str
     latest_recorded: str
+    #: The FIGI OpenFIGI mapped its ticker to, stated on its resolve, or
+    #: empty: not asked yet, or none found (decision 64).
+    figi: str = ""
+    #: `mapped`, `none found` or `not asked yet`.
+    at_openfigi: str = ""
 
 
 @dataclass(frozen=True)

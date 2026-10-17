@@ -9,8 +9,10 @@ datasets' -- and a ticker Tiingo does not know is shown as not found.
 
 **Subjects.** A fund's subject is the deployment's record the Funds row names
 where it names one; otherwise its ticker resolved as Tiingo's symbol
-(`symbol` VIGIX from source `tiingo`, W3.1), with what Tiingo states of it --
-a fund, in US dollars, its name -- and a miss reported with why (W3.2).
+(`symbol` VIGIX from source `tiingo`, W3.1), beside each FIGI OpenFIGI maps
+the ticker to under the deployment's access (figi.py, decision 64), so it
+meets the platform's record, with what Tiingo states of it -- a fund, in US
+dollars, its name -- and a miss reported with why (W3.2).
 
 **As of now, said** (contract v20, as fed-h10 does): every resolve names its
 as-of, the time it is asked -- a fund is resolved once and served for
@@ -61,7 +63,8 @@ import meridian
 from meridian.plugin.v1 import operations_pb2 as ops
 
 from .convert import NEW_YORK, Nav, navs, to_prices
-from .declaration import DAILY
+from .declared import DAILY
+from .figi import Figis, OpenFigi, Unmapped, openfigi
 from .raw import RawStore
 from .settings import MOST_FUNDS, Config, Fund
 from .vendor import (
@@ -109,6 +112,10 @@ class FundState:
     latest: str = ""
     #: Read from its record when the lake wanted it, not listed in Funds.
     wanted: bool = False
+    #: What OpenFIGI mapped its ticker to (decision 64): None until asked,
+    #: or where it found none; `figi_asked` once it answered.
+    figis: Figis | None = None
+    figi_asked: bool = False
 
     @property
     def mutual_fund(self) -> bool:
@@ -140,6 +147,8 @@ class Status:
     started_at: datetime | None = None
     checked_at: datetime | None = None
     error: str = ""
+    #: Why OpenFIGI could not be asked last, or empty (decision 64).
+    figi_error: str = ""
     recorded: int = 0
     restated: int = 0
     unchanged: int = 0
@@ -186,11 +195,14 @@ class Feed:
         raw: RawStore,
         now: Callable[[], datetime] = utc_now,
         vendor: Tiingo | None = None,
+        figi: OpenFigi | None = None,
     ) -> None:
         self.plugin = plugin
         self.raw = raw
         self.now = now
         self.vendor = vendor
+        self.figi = figi
+        self._figi_keyed: tuple[bool, str] | None = None
         self.status = Status(started_at=now(), mode=vendor.mode if vendor else "waiting")
         self._keyed: tuple[bool, str] | None = None
         #: Wanted records found to be a second record of a fund served,
@@ -210,6 +222,12 @@ class Feed:
             self.status.error = ""
             for fund in self.every_fund():
                 fund.found, fund.latest = "", ""
+        figi_keyed = (config.sample_data, config.openfigi_key)
+        if figi_keyed != self._figi_keyed:
+            self._figi_keyed = figi_keyed
+            self.figi = openfigi(config.sample_data, config.openfigi_key)
+            for fund in self.every_fund():
+                fund.figis, fund.figi_asked = None, False
         self.status.mode = self.vendor.mode if self.vendor is not None else "waiting"
         self.status.token_set = bool(config.token)
         self.status.missing = config.missing
@@ -288,8 +306,10 @@ class Feed:
                 await self.join(fund, read.instrument)
             return
         identifier = ops.Identifier(scheme="symbol", value=fund.ticker, source=SOURCE)
+        await self.map_figi(fund)
+        stated = [identifier, *(fund.figis.identifiers() if fund.figis else [])]
         found = await self.plugin.resolve_identifier(
-            identifiers=[identifier],
+            identifiers=stated,
             as_of_ns=_ns(self.now()),
             stated_asset_class="fund",
             stated_currency="USD",
@@ -303,11 +323,26 @@ class Feed:
         await self.plugin.report_missing_instrument(
             source=SOURCE,
             asset_class="fund",
-            identifiers=[identifier],
+            identifiers=stated,
             reason=reason,
             as_of_ns=_ns(self.now()),
             observed_at_ns=_ns(self.now()),
         )
+
+    async def map_figi(self, fund: FundState) -> None:
+        """The fund's ticker mapped to its FIGIs through OpenFIGI (decision
+        64), once; where OpenFIGI cannot be asked, said on Connection, and the
+        fund resolved by Tiingo's symbol alone until it can."""
+        if fund.figi_asked or self.figi is None:
+            return
+        try:
+            mapped = await self.figi.map([fund.ticker])
+        except Unmapped as failed:
+            log.warning("OpenFIGI was not asked for %s: %s", fund.ticker, failed)
+            self.status.figi_error = str(failed)
+            return
+        fund.figis, fund.figi_asked = mapped.get(fund.ticker), True
+        self.status.figi_error = ""
 
     # ── The deployment's records (W3.6, W3.1, W3.2) ─────────────────────
 

@@ -1,18 +1,20 @@
-# The Tiingo plugin's documentation
+# Tiingo plugin: its documentation
 
-For the people who set it up and use it. Written for version 0.5.0.
+What this plugin's vendor says about it, for the people who set it up and use
+it. Each version ships these sections with its upload, named by digest in its
+declaration, and a deployment shows them on the plugin's **Documentation**
+tab, beside a Reference drawn from what the version declares.
 
-| Page | For |
+| Section | For |
 |---|---|
-| [Overview](overview.md) | What it is for, and what it records |
-| [Setup](setup.md) | Your token, your funds, licensing and entitling |
-| [Pages](pages.md) | Connection and Datasets, and their tools |
+| [Overview](overview.md) | What it does, what it records, and what it never does |
+| [Setup](setup.md) | What to arrange first, and the steps after launching |
+| [Pages](pages.md) | Each page, who opens it and what it is for |
 | [Troubleshooting](troubleshooting.md) | What each state means, and what to do |
-| [Terms](terms.md) | Tiingo's terms, your due diligence, the licence |
+| [Terms](terms.md) | The vendor's terms summarised, your due diligence, the licence |
 
-**A draft, in plain Markdown.** The format a plugin ships its documentation
-in is not defined yet; when it is, these pages move into it.
+This file is the repository's own index: it is not uploaded.
 
-**No reference here.** The list of this plugin's roles, settings, tools,
-pages and storage will be generated from what the plugin declares, so it
-always matches the version you run.
+**No reference here.** The plugin's roles, settings, pages, tools and storage
+are listed on the Documentation tab's Reference, drawn from the version's own
+declaration, so they always match the version you run.

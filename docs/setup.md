@@ -9,13 +9,22 @@ nobody sees it again, and the plugin sends it only to Tiingo.
 
 Until it is set, the plugin waits and reads nothing.
 
+## OpenFIGI, optional
+
+Before a fund is resolved, its ticker is mapped through
+[OpenFIGI](https://www.openfigi.com) to its FIGIs, which are stated beside
+Tiingo's symbol so the fund meets the platform's record for it. OpenFIGI
+answers without a key, at its lower limits. Where the deployment has its own
+OpenFIGI account, enter its key in **OpenFIGI API key**: a secret setting,
+sent only to OpenFIGI, for its higher limits.
+
 ## Your funds
 
 Under **Funds**, add a row for each mutual fund to keep NAVs for: its ticker,
 such as `VIGIX`. Where your custodian's positions already name the fund's
 record in this deployment, pick it in the row's **Instrument** column, so the
 NAV values the position you hold; otherwise the plugin finds or makes the
-record by Tiingo's symbol.
+record by Tiingo's symbol and the fund's FIGIs.
 
 A fund your custodian's positions name needs no row at all for a reader to
 value it: when the reader asks for its NAV, the plugin reads the record, and
@@ -36,4 +45,5 @@ On the deployment's **Data sources** page (deployment admins):
 ## Try it without a token
 
 On a deployment installed for development, **Sample data** serves
-invented responses for VIGIX and VOO, with no token.
+invented responses for VIGIX and VOO, with no token, and invented FIGIs in
+place of OpenFIGI's.

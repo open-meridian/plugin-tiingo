@@ -2,7 +2,8 @@
 
 from __future__ import annotations
 
-from tiingo.declaration import DAILY_DATASET, DECLARATION, mode_name
+from tiingo.declaration import DECLARATION
+from tiingo.declared import DAILY_DATASET, mode_name
 
 
 def test_one_daily_dataset_of_navs() -> None:

@@ -1,6 +1,7 @@
 # The e2e's hosts file, mounted over the plugin's /etc/hosts (e2e/plugin.yaml):
-# Tiingo answers nowhere, so the plugin can never reach it
-# here: no token, no live call, ever.
+# Tiingo and OpenFIGI answer nowhere, so the plugin can never reach either
+# here: no token, no key, no live call, ever.
 127.0.0.1 localhost
 ::1 localhost
 127.0.0.1 api.tiingo.com
+127.0.0.1 api.openfigi.com

@@ -116,7 +116,9 @@ async def test_a_book_fund_known_only_by_another_sources_identifiers_is_served(
         "ResolveIdentifier",
         lambda p: ops.ResolveIdentifierResult(
             found=True,
-            instrument_id=CUSTODIAN if len(p.identifiers) == 2 else "LCL-VIGIX",
+            instrument_id=CUSTODIAN
+            if any(i.value == "VTSAX" for i in p.identifiers)
+            else "LCL-VIGIX",
         ),
     )
     work = feed(tmp_path, recorder, funds=(Fund("VIGIX"),))

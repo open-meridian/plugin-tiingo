@@ -22,4 +22,5 @@ it recorded and declined. **Wants:** the standing wants it keeps current and
 the last wants it answered. **Subjects:** whether it may read an
 instrument's record. Then **Funds**: each fund listed, or read from the record a
 reader's want named, one line each: what Tiingo says it is, the deployment's
-record for it or why there is none, and the latest day recorded. A row's `…` opens its details.
+record for it or why there is none, and the latest day recorded. A row's `…` opens its details,
+among them the FIGI OpenFIGI mapped its ticker to, or that none was found.
