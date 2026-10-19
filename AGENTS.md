@@ -1,7 +1,7 @@
 # meridian-tiingo
 
 Mutual funds' daily net asset values from Tiingo as an Open Meridian data
-plugin, in Python on the open-meridian SDK (0.28.0, contract v24). It runs
+plugin, in Python on the open-meridian SDK (0.31.0, contract v26). It runs
 beside a sidecar in a Meridian deployment and puts each listed fund's NAVs
 into the deployment's lake, end of day. What it may publish and subscribe to
 comes from its one role, `data`, declared in `pyproject.toml`, once a

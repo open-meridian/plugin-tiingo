@@ -20,6 +20,11 @@ and contract v24's two every-role cases are the SDK's.
 presented: a fund the book holds from a custodian, its record carrying the
 custodian's symbol and a CUSIP, is read (W3.6) and its NAV recorded against
 the want.
+
+Contract v26's `queries-the-lake-within-bounds` is mapped as the SDK's data
+template maps it: one bounded query of the kind the role reads, its prices,
+of one subject it records (`lake_query`). The plugin itself asks the lake
+nothing; contract v26's event-group case is the SDK's.
 """
 
 from __future__ import annotations
@@ -30,6 +35,7 @@ from typing import Any
 
 from meridian.operations import as_decimal
 from meridian.plugin.v1 import operations_pb2 as ops
+from meridian.roles.data.testing import lake_query
 from meridian.suites import Recorder, run, suite
 
 from tiingo.feed import Feed
@@ -141,6 +147,7 @@ def producers(tmp: Path) -> dict[str, Callable[[Recorder], Awaitable[None]]]:
         "a-subject-declined": wanted(want("w-2", ["LCL-elsewhere"], day="2026-10-08").message),
         "a-standing-want-withdrawn": withdrawn,
         "reads-its-datasets-licences": licences,
+        "queries-the-lake-within-bounds": lake_query("LCL-VIGIX"),
     }
 
 
@@ -148,11 +155,13 @@ def test_the_data_suite_passes(tmp_path: Path) -> None:
     report = run("data", producers(tmp_path), not_presented=NOT_PRESENTED, instance_id="tiingo")
     assert report.passed, report.failures
     assert sorted(report.not_presented) == sorted(NOT_PRESENTED)
-    # Contract v24: the two cases every suite holds, which the SDK answers.
-    assert len(report.passed_cases) == 9
+    # The cases every suite holds, which the SDK answers: contract v24's two
+    # and v26's event group.
+    assert len(report.passed_cases) == 11
     assert report.answered_by_sdk == [
         "hears-and-reads-a-replacement",
         "reads-the-template-catalogue",
+        "hears-and-reads-an-event-group",
     ]
 
 
