@@ -32,7 +32,9 @@ guessed: the fund is resolved by Tiingo's symbol alone.
 
 A fund strikes its NAV after the close; Tiingo has it after midnight New York
 time. The plugin reads each fund's last days every six hours, so a NAV is
-recorded by the next morning. Asked for an older day, it reads that day;
+recorded by the next morning. The dataset declares that delay, eight hours
+from 16:00 to midnight New York time, so a NAV is not judged late while
+Tiingo cannot have it yet. Asked for an older day, it reads that day;
 asked for a day with no NAV yet, it says the source has not stated it.
 
 ## What it does not do
