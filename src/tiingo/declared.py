@@ -19,6 +19,11 @@ of day:
   strikes its NAV; its business dates the platform's US equity venues (NYSE
   markets) calendar's (`calendar_id`, from 0.5.0);
 - no venue: a fund's NAV is struck by the fund, on no venue;
+- its declared delay (contract v27, `declared_delay_ns`) eight hours: a
+  fund strikes its NAV at the day's end, 16:00 New York, and Tiingo serves
+  it from midnight ("Mutual Fund NAVs are available after 12 AM EST",
+  Tiingo's end-of-day documentation), so the lake judges a NAV's staleness
+  against the delay plus its ceiling, never as late from 16:00;
 - the licence Tiingo's free and Power plans give, as the plugin's builders
   read them (README, "The terms"): for internal and personal use, no
   redistribution -- so one person's terms (`personal_use`), kept, used to
@@ -49,6 +54,9 @@ VENDOR = "Tiingo"
 US_EQUITY_CALENDAR = "CAL-01M4VF0F4XGP3RATCCSKDPZSBP"
 #: A day, in seconds.
 CADENCE = 86_400
+#: How far behind the day's end Tiingo serves a fund's NAV: from 16:00 New
+#: York, when the fund strikes it, to midnight, when Tiingo has it.
+DECLARED_DELAY_NS = (24 * 60 - DAY_END_MINUTE) * 60 * 1_000_000_000
 
 DAILY_DATASET = DatasetDeclaration(
     key=DAILY,
@@ -60,6 +68,7 @@ DAILY_DATASET = DatasetDeclaration(
     day_time_zone=DAY_TIME_ZONE,
     day_end_minute=DAY_END_MINUTE,
     calendar_id=US_EQUITY_CALENDAR,
+    declared_delay_ns=DECLARED_DELAY_NS,
 )
 
 RESPONSES_KIND = RecordKind(RESPONSES, "Raw responses", window_days=DEFAULT_WINDOW_DAYS)

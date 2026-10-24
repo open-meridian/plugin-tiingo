@@ -4,19 +4,24 @@ An [Open Meridian](https://open-meridian.com) plugin that puts mutual funds'
 daily net asset values from [Tiingo](https://www.tiingo.com) into a
 deployment's lake: each fund you list, its NAV for each business day, so a
 reporting plugin can value a fund no exchange prices, such as VIGIX. It holds
-the `data` role, a data plugin. This is release 0.7.0. How to set it up and
+the `data` role, a data plugin. This is release 0.8.0. How to set it up and
 use it is in [docs/](docs/README.md); how a plugin like it is built is
 documented at [open-meridian.dev](https://open-meridian.dev).
 
-It is built on the SDK it pins, `open-meridian==0.31.0`, which declares
-contract v26 (from v25, its whole declaration and docs/, which a deployment shows on its Documentation tab; each fund's ticker mapped to its FIGIs through OpenFIGI); its work is the lake prices the book (meridian-design
+It is built on the SDK it pins, `open-meridian==0.32.2`, which declares
+contract v27: the NAVs' delay is declared on the catalogue (from v27); its
+whole declaration and docs/ are what a deployment shows on its Documentation
+tab (from v25); and each fund's ticker is mapped to its FIGIs through
+OpenFIGI. Its work is the lake prices the book (meridian-design
 `plans/the-lake-prices-the-book.md`, row 14).
 
 ## What it records
 
 - **One dataset, `<instance>:daily`:** NAVs, each fund's last days pushed
   every six hours and any past day pulled when the lake wants it; daily; New
-  York's day, ending at 16:00; no venue; one person's terms.
+  York's day, ending at 16:00; no venue; one person's terms; a declared
+  delay of eight hours, from 16:00, when a fund strikes its NAV, to
+  midnight, when Tiingo has it, so the lake judges a NAV's age against it.
 - **A fund's NAV, kind `nav`,** for its business date, in US dollars, exact:
   made a decimal from the number's text in Tiingo's response, never a float.
   Tiingo gives a fund's NAV as the day's close, after midnight New York time.
@@ -95,21 +100,25 @@ for the reader, both tools answering what the pages show, and a new
 container recording nothing twice and reading its licence on start.
 
 **The data suite.** `tests/test_suite.py` runs the SDK's suite on the
-plugin's own conversion, and it passes: eight cases are presented (and the
+plugin's own conversion, and it passes: seven cases are presented (and the
 SDK answers contract v24's replacement and template-catalogue cases and
-v26's event group), a fund
-known only by another source's identifiers, its dataset's licences and
-contract v26's bounded query of the lake (as the SDK's template maps it:
-the plugin itself asks the lake nothing) among them; every other case is about a kind of data a fund's NAV is not
-(a close, a bar, an FX rate, a crypto asset, a venue, trades, quotes), and
-is not presented, with why, as the suite lets it. So are contract v22's
+v26's event group), a fund known only by another source's identifiers and
+its dataset's licences among them, and the two cases about closes a NAV
+meets (a price recorded exactly, and against the want); every other case is
+about a kind of data a fund's NAV is not (a close's kind, a bar, an FX
+rate, a crypto asset, a venue, trades, quotes, contract v27's rates), and is
+not presented, with why, as the suite lets it. Contract v27's bounded query
+of the lake is about trades, and the plugin records none (nor asks the lake
+anything). Its liveness case is about streams: Tiingo's NAVs are asked for,
+never streamed, so there is no heartbeat to record. Its feed-delay case is
+about latency, which core receives from contract v28 (ruling 518). So are contract v22's
 calendar cases: the plugin records each NAV on the business date Tiingo
 states, and never reads a settlement calendar or asks for a settlement date;
 and contract v23's outcomes, a fund being no event contract. From 0.5.0 the
 dataset names the platform's US equity venues (NYSE markets) calendar, so the
 lake flags a NAV dated on a day it says is closed.
 
-**open-meridian 0.31.0 is on PyPI** and its base image on ghcr.io: the
+**open-meridian 0.32.2 is on PyPI** and its base image on ghcr.io: the
 runners install the pin from there. Locally the Makefile builds
 both from the sibling meridian-python checkout.
 
@@ -128,7 +137,8 @@ them, as they change.
 - **The free plan's limits,** as Tiingo states them: 50 requests an hour,
   1,000 a day, 500 symbols a month. The plugin keeps inside them.
 - **NAVs after midnight New York time.** A fund's NAV for a day arrives the
-  night after; each NAV shows its date.
+  night after (Tiingo: "Mutual Fund NAVs are available after 12 AM EST");
+  each NAV shows its date, and the dataset declares the eight hours.
 - **No endorsement.** This project is not affiliated with or endorsed by
   Tiingo.
 

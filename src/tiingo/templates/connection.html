@@ -1,7 +1,9 @@
 {#- Connection, at admin: the data role's (meridian/roles/data/connection.html),
     with Tiingo's nuance at its blocks only -- the head's status, the source
     under "Key", and its requests and the responses it keeps under "Limits
-    and use". The token is said to be set or not, never shown; no NAV. -#}
+    and use", once a key is set (with none, nothing is asked or kept, and the
+    page keeps to one screen under the role's "No key yet"). The token is said
+    to be set or not, never shown; no NAV. -#}
 {% extends "meridian/roles/data/connection.html" %}
 {% import "meridian/roles/_rows.html" as om %}
 {% import "meridian/kit.html" as kit %}
@@ -9,7 +11,7 @@
 {% block vendor_rows %}
 {% if section == "Key" %}
 <tr class="wide-only"><th scope="row">Source</th><td>{{ data.source }}</td><td class="more"></td></tr>
-{% elif section == "Limits and use" %}
+{% elif section == "Limits and use" and data.mode != "No key" %}
 {{ om.row("Requests", data.requests_last_hour ~ " this hour, " ~ data.requests_last_day ~ " today") }}
 <tr class="wide-only"><th scope="row">Responses kept</th><td>{{ data.responses_kept }}{% if data.kept_for %} <span class="hint">{{ data.kept_for }}</span>{% endif %}</td><td class="more"></td></tr>
 {% endif %}

@@ -1,4 +1,4 @@
-"""The data suite (meridian.suites, contract v20), each case Tiingo's NAVs
+"""The data suite (meridian.suites, contracts v20 to v27), each case Tiingo's NAVs
 present mapped to the plugin's own conversion of recorded Tiingo responses,
 the whole suite passing.
 
@@ -16,15 +16,25 @@ asks for a settlement date; nor are contract v23's outcomes (no event
 contract). Every other case is presented, its datasets' licences among them,
 and contract v24's two every-role cases are the SDK's.
 
+Contract v27 marks two cases a fund's NAV meets as about closes (ruling
+537), `an-exact-price` and `a-want-recorded-against`: they ask only that a
+price is recorded exactly and against the want, which a NAV is, so both stay
+presented (`PRESENTED`), and only the closes cases asking for a close's kind
+are not. Contract v27's rates cases (about rates) are not presented: no
+reference rate, curve or index level. Nor is `records-a-datasets-liveness`
+(about streams): Tiingo's NAVs are asked for once a day and never streamed,
+so there is no heartbeat to record. `reports-its-feed-delay`, about
+latency, is not presented by any v27 plugin (ruling 518). The NAVs' delay is
+declared instead, on the catalogue (declared.py).
+
 `a-subject-another-source-resolved` (contract v18 as ruled 2026-10-10) is
 presented: a fund the book holds from a custodian, its record carrying the
 custodian's symbol and a CUSIP, is read (W3.6) and its NAV recorded against
 the want.
 
-Contract v26's `queries-the-lake-within-bounds` is mapped as the SDK's data
-template maps it: one bounded query of the kind the role reads, its prices,
-of one subject it records (`lake_query`). The plugin itself asks the lake
-nothing; contract v26's event-group case is the SDK's.
+Contract v26's `queries-the-lake-within-bounds` is about trades from
+contract v27, and is not presented: the plugin records no trades, and asks
+the lake nothing. Contract v26's event-group case is the SDK's.
 """
 
 from __future__ import annotations
@@ -35,7 +45,6 @@ from typing import Any
 
 from meridian.operations import as_decimal
 from meridian.plugin.v1 import operations_pb2 as ops
-from meridian.roles.data.testing import lake_query
 from meridian.suites import Recorder, run, suite
 
 from tiingo.feed import Feed
@@ -60,10 +69,26 @@ NEVER = {
     # Contract v23: an event contract's outcome.
     "outcomes": "mutual funds' NAVs only: no event contract, so no outcome",
     "disputed outcomes": "mutual funds' NAVs only: no event contract, so no outcome",
+    # Contract v27.
+    "rates": "mutual funds' NAVs only: no reference rate's fixing, curve or index level",
+    "streams": (
+        "Tiingo's NAVs are asked for once a day, after midnight New York time, and never "
+        "streamed: no heartbeat to record"
+    ),
+    "latency": "core receives ReportLatency from contract v28, ruling 515",
 }
 
+#: The cases about closes a NAV meets all the same (ruling 537): a price
+#: recorded exactly, and recorded against the want.
+PRESENTED = {"an-exact-price", "a-want-recorded-against"}
+
 NOT_PRESENTED = {
-    case.name: NEVER[case.about] for case in suite("data").cases if case.about in NEVER
+    case.name: NEVER[case.about]
+    for case in suite("data").cases
+    if case.about in NEVER and case.name not in PRESENTED
+} | {
+    # Contract v27: the case is about trades.
+    "queries-the-lake-within-bounds": "it records no trades",
 }
 
 
@@ -147,7 +172,6 @@ def producers(tmp: Path) -> dict[str, Callable[[Recorder], Awaitable[None]]]:
         "a-subject-declined": wanted(want("w-2", ["LCL-elsewhere"], day="2026-10-08").message),
         "a-standing-want-withdrawn": withdrawn,
         "reads-its-datasets-licences": licences,
-        "queries-the-lake-within-bounds": lake_query("LCL-VIGIX"),
     }
 
 
@@ -157,7 +181,7 @@ def test_the_data_suite_passes(tmp_path: Path) -> None:
     assert sorted(report.not_presented) == sorted(NOT_PRESENTED)
     # The cases every suite holds, which the SDK answers: contract v24's two
     # and v26's event group.
-    assert len(report.passed_cases) == 11
+    assert len(report.passed_cases) == 10
     assert report.answered_by_sdk == [
         "hears-and-reads-a-replacement",
         "reads-the-template-catalogue",

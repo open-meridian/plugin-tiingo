@@ -16,6 +16,13 @@ def test_one_daily_dataset_of_navs() -> None:
     assert not DAILY_DATASET.venue_id
 
 
+def test_the_navs_delay_is_eight_hours_from_the_days_end_to_midnight() -> None:
+    # Contract v27: a fund strikes its NAV at 16:00 New York; Tiingo has it
+    # after midnight.
+    assert DAILY_DATASET.declared_delay_ns == 8 * 3_600 * 10**9
+    assert DAILY_DATASET._to_json()["declared_delay_ns"] == 8 * 3_600 * 10**9
+
+
 def test_tiingos_terms_are_one_persons() -> None:
     licence = DAILY_DATASET.licence_default
     assert licence is not None and licence.personal_use
