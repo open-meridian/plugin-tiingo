@@ -4,12 +4,12 @@ An [Open Meridian](https://open-meridian.com) plugin that puts mutual funds'
 daily net asset values from [Tiingo](https://www.tiingo.com) into a
 deployment's lake: each fund you list, its NAV for each business day, so a
 reporting plugin can value a fund no exchange prices, such as VIGIX. It holds
-the `data` role, a data plugin. This is release 0.8.0. How to set it up and
+the `data` role, a data plugin. This is release 0.9.0. How to set it up and
 use it is in [docs/](docs/README.md); how a plugin like it is built is
 documented at [open-meridian.dev](https://open-meridian.dev).
 
-It is built on the SDK it pins, `open-meridian==0.32.2`, which declares
-contract v27: the NAVs' delay is declared on the catalogue (from v27); its
+It is built on the SDK it pins, `open-meridian==0.33.4`, which declares
+contract v28; on contract v27 the NAVs' delay is declared on the catalogue (from v27); its
 whole declaration and docs/ are what a deployment shows on its Documentation
 tab (from v25); and each fund's ticker is mapped to its FIGIs through
 OpenFIGI. Its work is the lake prices the book (meridian-design
@@ -118,8 +118,8 @@ and contract v23's outcomes, a fund being no event contract. From 0.5.0 the
 dataset names the platform's US equity venues (NYSE markets) calendar, so the
 lake flags a NAV dated on a day it says is closed.
 
-**open-meridian 0.32.2 is on PyPI** and its base image on ghcr.io: the
-runners install the pin from there. Locally the Makefile builds
+**open-meridian 0.33.4 is on PyPI** and its base image on ghcr.io, pinned
+by digest: the runners install the pin from there. Locally the Makefile builds
 both from the sibling meridian-python checkout.
 
 ## The terms, summarised

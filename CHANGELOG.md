@@ -1,5 +1,22 @@
 # Changelog
 
+## 0.9.0
+
+On open-meridian 0.33.4, contract v28 (ruling 940). Not finished:
+`reports-its-feed-delay` is unmapped (below).
+
+- **The pins**: open-meridian 0.32.2 to 0.33.4 and plugin-python:0.33.4 by
+  tag and digest (`meridian plugin migrate`, 0.33.0 first: its `SubjectRef`
+  rewrites, ruling 599); core v28's runtime and harness (8def82a, merged as
+  bcd96cb; chart 0.1.313) by tag and digest. `meridian` stays 0.1.52.
+- **The data suite's v28 cases** about option chains, filings, holdings,
+  corporate actions and ratings (ruling 602): not presented, with why.
+- **`reports-its-feed-delay`** (ruling 518) is required from contract v28 and
+  carries no `about`. The plugin records no NAV's age and sends no
+  ReportLatency: Tiingo states a NAV's business date and no time, and the
+  NAVs' delay is declared on the catalogue. Mapping it needs the plugin to
+  report latency, a behaviour change left for a ruling.
+
 ## 0.8.0
 
 On open-meridian 0.32.2, contract v27: the NAVs' delay declared, and the

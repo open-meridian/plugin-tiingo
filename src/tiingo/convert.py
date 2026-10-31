@@ -33,9 +33,9 @@ from decimal import Decimal
 from typing import Any
 from zoneinfo import ZoneInfo
 
+import meridian
 from meridian import Money, ObservationMeta, Price
 from meridian.plugin.v1 import operations_pb2 as ops
-import meridian
 
 #: The day the dataset declares: New York's, ending at 16:00.
 DAY_TIME_ZONE = "America/New_York"

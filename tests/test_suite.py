@@ -1,4 +1,4 @@
-"""The data suite (meridian.suites, contracts v20 to v27), each case Tiingo's NAVs
+"""The data suite (meridian.suites, contracts v20 to v28), each case Tiingo's NAVs
 present mapped to the plugin's own conversion of recorded Tiingo responses,
 the whole suite passing.
 
@@ -23,9 +23,14 @@ presented (`PRESENTED`), and only the closes cases asking for a close's kind
 are not. Contract v27's rates cases (about rates) are not presented: no
 reference rate, curve or index level. Nor is `records-a-datasets-liveness`
 (about streams): Tiingo's NAVs are asked for once a day and never streamed,
-so there is no heartbeat to record. `reports-its-feed-delay`, about
-latency, is not presented by any v27 plugin (ruling 518). The NAVs' delay is
-declared instead, on the catalogue (declared.py).
+so there is no heartbeat to record. The NAVs' delay is declared on the
+catalogue (declared.py).
+
+Contract v28's cases about option chains, filings, holdings, corporate
+actions and ratings (ruling 602) are not presented: Tiingo's end-of-day
+prices carry none of them. `reports-its-feed-delay` is required from
+contract v28 (ruling 518) and has no `about`: the plugin reports no feed
+delay yet (see the CHANGELOG's 0.9.0).
 
 `a-subject-another-source-resolved` (contract v18 as ruled 2026-10-10) is
 presented: a fund the book holds from a custodian, its record carrying the
@@ -75,7 +80,12 @@ NEVER = {
         "Tiingo's NAVs are asked for once a day, after midnight New York time, and never "
         "streamed: no heartbeat to record"
     ),
-    "latency": "core receives ReportLatency from contract v28, ruling 515",
+    # Contract v28 (ruling 602).
+    "option chains": "mutual funds' NAVs only: no option is listed on a fund's NAV",
+    "filings": "Tiingo's end-of-day prices carry no filing or reported fact",
+    "holdings": "Tiingo's end-of-day prices carry no holdings report",
+    "corporate actions": "Tiingo's end-of-day prices carry no declared corporate action",
+    "ratings": "Tiingo's end-of-day prices carry no rating",
 }
 
 #: The cases about closes a NAV meets all the same (ruling 537): a price
