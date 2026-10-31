@@ -35,6 +35,7 @@ from zoneinfo import ZoneInfo
 
 from meridian import Money, ObservationMeta, Price
 from meridian.plugin.v1 import operations_pb2 as ops
+import meridian
 
 #: The day the dataset declares: New York's, ending at 16:00.
 DAY_TIME_ZONE = "America/New_York"
@@ -116,7 +117,7 @@ def to_prices(
             Price(
                 meta=ObservationMeta(
                     row_key=row_key(nav.ticker, nav.day),
-                    subjects=[ops.SubjectRef(entity_id=subject)],
+                    subjects=[meridian.SubjectRef(entity_id=subject)],
                     source=ops.Source(dataset=dataset),
                     valid_from_ns=start,
                     valid_until_ns=end,
