@@ -33,6 +33,7 @@ from decimal import Decimal
 from typing import Any
 from zoneinfo import ZoneInfo
 
+import meridian
 from meridian import Money, ObservationMeta, Price
 from meridian.plugin.v1 import operations_pb2 as ops
 
@@ -116,7 +117,7 @@ def to_prices(
             Price(
                 meta=ObservationMeta(
                     row_key=row_key(nav.ticker, nav.day),
-                    subjects=[ops.SubjectRef(entity_id=subject)],
+                    subjects=[meridian.SubjectRef(entity_id=subject)],
                     source=ops.Source(dataset=dataset),
                     valid_from_ns=start,
                     valid_until_ns=end,

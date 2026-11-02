@@ -18,7 +18,7 @@ from meridian.suites import Recorder
 from tiingo.figi import Figis, LiveOpenFigi, Unmapped, figis_of, jobs
 from tiingo.settings import Config, Fund, config_from
 
-from conftest import feed
+from conftest import feed, recorder
 
 
 class Fake:
@@ -47,7 +47,7 @@ async def test_the_resolve_states_each_figi_beside_tiingos_symbol(tmp_path: Path
     fake = Fake({"VIGIX": Figis("BBG000XVIGX1", "BBG000XVIGX2", "BBG001SVIGX3")})
     work.figi = fake
     await work.check()
-    [resolved] = work.plugin.on("ResolveIdentifier")
+    [resolved] = recorder(work).on("ResolveIdentifier")
     assert schemes(resolved) == [
         ("symbol", "VIGIX", "tiingo"),
         ("figi", "BBG000XVIGX1", ""),
@@ -65,7 +65,7 @@ async def test_sample_data_maps_by_the_invented_figis(tmp_path: Path) -> None:
     work = feed(tmp_path, funds=(Fund("VIGIX"),))
     assert work.figi is not None and work.figi.mode == "synthetic"
     await work.check()
-    [resolved] = work.plugin.on("ResolveIdentifier")
+    [resolved] = recorder(work).on("ResolveIdentifier")
     assert ("figi", "BBG00E2EVIGX", "") in schemes(resolved)
 
 
@@ -73,7 +73,7 @@ async def test_none_found_resolves_by_tiingos_symbol_alone(tmp_path: Path) -> No
     work = feed(tmp_path, funds=(Fund("VIGIX"),))
     work.figi = Fake({})
     await work.check()
-    [resolved] = work.plugin.on("ResolveIdentifier")
+    [resolved] = recorder(work).on("ResolveIdentifier")
     assert schemes(resolved) == [("symbol", "VIGIX", "tiingo")]
     assert work.status.funds["VIGIX"].figi_asked
 

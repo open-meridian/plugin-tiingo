@@ -86,20 +86,20 @@ async def synthetic_feed() -> Feed:
             instrument_id=CUSTODIAN if len(p.identifiers) == 2 else f"LCL-{p.identifiers[0].value}",
         ),
     )
-    feed = Feed(recorder, RawStore(), now=lambda: AT)
+    feed = recorder.bind(Feed(RawStore(), now=lambda: AT))
     feed.configure(Config(funds=FUNDS, sample_data=True))
     await feed.check()
     vigix = feed.status.funds["VIGIX"].instrument_id
-    await feed.on_want(_want("want-0922", vigix, "2026-09-22"))
-    await feed.on_want(_want("want-1012", vigix, "2026-10-12"))
-    await feed.on_want(_want("want-standing", vigix, standing=True))
-    await feed.on_want(_want("want-vtsax", CUSTODIAN, "2026-10-08"))
+    await feed.on_observations_wanted(_want("want-0922", vigix, "2026-09-22"))
+    await feed.on_observations_wanted(_want("want-1012", vigix, "2026-10-12"))
+    await feed.on_observations_wanted(_want("want-standing", vigix, standing=True))
+    await feed.on_observations_wanted(_want("want-vtsax", CUSTODIAN, "2026-10-08"))
     return feed
 
 
 def render(page: str) -> str:
     if page.endswith("-no-key"):
-        feed = Feed(Recorder("tiingo"), RawStore(), now=lambda: AT)
+        feed = Recorder("tiingo").bind(Feed(RawStore(), now=lambda: AT))
         feed.configure(Config(missing=("tiingo_api_token",)))
     else:
         feed = asyncio.run(synthetic_feed())

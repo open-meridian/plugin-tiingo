@@ -3,6 +3,7 @@ as the sidecar delivers them."""
 
 from __future__ import annotations
 
+import weakref
 from datetime import UTC, datetime
 from pathlib import Path
 from typing import Any
@@ -53,9 +54,22 @@ def feed(
     funds: tuple[Fund, ...] = FUNDS,
 ) -> Feed:
     """The plugin's work on the suite's recorder and synthetic Tiingo, at `at`."""
-    work = Feed(plugin or Recorder(INSTANCE), RawStore(tmp), now=lambda: at)
+    lake = plugin or Recorder(INSTANCE)
+    work = lake.bind(Feed(RawStore(tmp), now=lambda: at))
     work.configure(Config(funds=funds, sample_data=True))
+    RECORDERS[work] = lake
     return work
+
+
+#: The recorder each feed `feed` made is bound to (SDK 0.35: the class's
+#: `plugin` is the recorder's stand-in for the connection, which keeps no
+#: act; the recorder does).
+RECORDERS: weakref.WeakKeyDictionary[Feed, Recorder] = weakref.WeakKeyDictionary()
+
+
+def recorder(work: Feed) -> Recorder:
+    """The recorder `work` was bound to by `feed`: what it recorded."""
+    return RECORDERS[work]
 
 
 def want(
