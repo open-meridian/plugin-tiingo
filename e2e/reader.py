@@ -35,6 +35,7 @@ import meridian
 from meridian import Interface, Page, SourceChoice
 from meridian.operations import as_money
 from meridian.plugin.v1 import operations_pb2 as ops
+from meridian.roles import custody, reporting
 
 PORT = 8088
 LOOP = asyncio.new_event_loop()
@@ -78,19 +79,24 @@ def price_json(price):
 
 
 class Reader:
-    def __init__(self, plugin):
-        self.plugin = plugin
+    """What the stand-in answers, through its two role classes (SDK 0.35:
+    each role one class, its acts made through it). It hears nothing: each
+    read is asked when the runner asks."""
+
+    def __init__(self):
+        self.custody = Custody()
+        self.reporting = Reporting()
 
     async def prices(self, query):
         one = lambda name: query.get(name, [""])[0]  # noqa: E731
-        asked = {"subjects": [ops.SubjectRef(entity_id=s) for s in query.get("subject", [])]}
+        asked = {"subjects": [meridian.SubjectRef(entity_id=s) for s in query.get("subject", [])]}
         if query.get("dataset"):
             asked["sources"] = SourceChoice(named=query["dataset"])
         if one("kind"):
             asked["kinds"] = [one("kind")]
         if one("date"):
             asked["business_date"] = one("date")
-        answer = await self.plugin.list_prices(**asked)
+        answer = await self.reporting.list_prices(**asked)
         return {
             "prices": [price_json(p) for p in answer.prices],
             "unanswered": [
@@ -105,7 +111,7 @@ class Reader:
         if fund not in CUSTODIANS:
             raise RuntimeError(f"the custodian holds no {fund!r}")
         identifiers, description = CUSTODIANS[fund]
-        found = await self.plugin.resolve_identifier(
+        found = await self.custody.resolve_identifier(
             identifiers=identifiers,
             stated_asset_class="fund",
             stated_currency="USD",
@@ -122,9 +128,18 @@ class Reader:
         if path == "/prices":
             return await self.prices(query)
         if path == "/datasets":
-            listed = await self.plugin.list_datasets()
+            listed = await self.reporting.list_datasets()
             return {"datasets": [d.dataset for d in listed.datasets]}
         return {"page": "the e2e's reader"}
+
+
+class Custody(custody.Role):
+    """`custody`: names the funds as a custodian's book would, by resolving
+    their identifiers."""
+
+
+class Reporting(reporting.Role):
+    """`reporting`: reads the NAVs and the datasets it may read."""
 
 
 def serve(reader):
@@ -162,17 +177,18 @@ DECLARATION = meridian.Declaration(
 )
 
 
-async def main():
-    plugin = await meridian.connect(
+def main():
+    reader = Reader()
+    threading.Thread(target=serve, args=(reader,), daemon=True).start()
+    # SDK 0.35: its role classes registered on one connection, until the
+    # harness stops it.
+    LOOP.run_until_complete(meridian.run_async(
         # Contract v25: what the stand-in registers is its declaration.
-        declaration=DECLARATION
-    )
-    print(f"reader registered as {plugin.identity.instance_id}", flush=True)
-    threading.Thread(target=serve, args=(Reader(plugin),), daemon=True).start()
-    while True:
-        await asyncio.sleep(3600)
+        declaration=DECLARATION,
+        roles=[reader.custody, reader.reporting],
+    ))
 
 
 if __name__ == "__main__":
     asyncio.set_event_loop(LOOP)
-    LOOP.run_until_complete(main())
+    main()

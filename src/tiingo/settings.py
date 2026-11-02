@@ -130,7 +130,7 @@ def config_from(values: Mapping[str, object], missing: Collection[str] = ()) -> 
     figi_key = values.get(OPENFIGI_KEY)
     rows = values.get(FUNDS)
     funds: dict[str, Fund] = {}
-    for row in rows if isinstance(rows, list) else []:
+    for row in rows if isinstance(rows, list | tuple) else []:
         ticker = str(row.get(TICKER, "")).strip().upper() if isinstance(row, dict) else ""
         if ticker and ticker not in funds:
             funds[ticker] = Fund(ticker, str(row.get(INSTRUMENT, "") or "").strip())

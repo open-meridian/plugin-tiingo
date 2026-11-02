@@ -12,7 +12,7 @@ from meridian.suites import Recorder
 
 from tiingo.settings import Config, Fund
 
-from conftest import AT, CUSTODIAN, CUSTODIANS, feed, held, want
+from conftest import AT, CUSTODIAN, CUSTODIANS, feed, held, recorder, want
 
 
 async def test_only_a_mutual_fund_is_served(tmp_path: Path) -> None:
@@ -23,10 +23,10 @@ async def test_only_a_mutual_fund_is_served(tmp_path: Path) -> None:
     assert funds["VIGIX"].served and funds["VIGIX"].name.startswith("Vanguard Growth")
     assert funds["VOO"].found == "found" and not funds["VOO"].served
     assert funds["NOSUCH"].found == "not_found"
-    [resolved] = work.plugin.on("ResolveIdentifier")
+    [resolved] = recorder(work).on("ResolveIdentifier")
     assert resolved.identifiers[0].scheme == "symbol" and resolved.identifiers[0].value == "VIGIX"
     assert resolved.identifiers[0].source == "tiingo"
-    [batch] = work.plugin.on("RecordPrices")
+    [batch] = recorder(work).on("RecordPrices")
     keys = [p.meta.row_key for p in batch.prices]
     assert keys[0] == "VIGIX:2026-09-30" and keys[-1] == "VIGIX:2026-10-09"
     assert {p.kind for p in batch.prices} == {ops.PRICE_KIND_NAV}
@@ -96,7 +96,7 @@ async def test_with_no_read_of_a_record_it_is_taken_as_named(tmp_path: Path) -> 
     work = feed(tmp_path, recorder, funds=(Fund("VIGIX", "LCL-from-snaptrade"),))
     await work.check()
     assert work.status.funds["VIGIX"].served and not work.status.reads_instruments
-    await work.on_want(want("w-9", [CUSTODIAN], day="2026-10-08"))
+    await work.on_observations_wanted(want("w-9", [CUSTODIAN], day="2026-10-08"))
     assert len(recorder.on("ResolveInstrument")) == 1
     [declined] = recorder.on("DeclineWant")
     assert declined.reason == ops.UNANSWERED_REASON_NOT_COVERED
@@ -123,7 +123,7 @@ async def test_a_book_fund_known_only_by_another_sources_identifiers_is_served(
     )
     work = feed(tmp_path, recorder, funds=(Fund("VIGIX"),))
     await work.check()
-    await work.on_want(want("w-10", [CUSTODIAN], day="2026-10-08"))
+    await work.on_observations_wanted(want("w-10", [CUSTODIAN], day="2026-10-08"))
     [read] = recorder.on("ResolveInstrument")
     assert read.instrument_id == CUSTODIAN
     joined = recorder.on("ResolveIdentifier")[-1]
@@ -159,8 +159,8 @@ async def test_a_second_record_of_a_fund_served_is_reported_not_keyed_twice(
     )
     work = feed(tmp_path, recorder, funds=(Fund("VIGIX"),))
     await work.check()
-    await work.on_want(want("w-11", ["LCL-custodian-vigix"], day="2026-10-08"))
-    await work.on_want(want("w-12", ["LCL-custodian-vigix"], day="2026-10-08"))
+    await work.on_observations_wanted(want("w-11", ["LCL-custodian-vigix"], day="2026-10-08"))
+    await work.on_observations_wanted(want("w-12", ["LCL-custodian-vigix"], day="2026-10-08"))
     [missed] = recorder.on("ReportMissingInstrument")
     assert missed.reason == ops.MISS_REASON_AMBIGUOUS
     assert [d.want_id for d in recorder.on("DeclineWant")] == ["w-11", "w-12"]
@@ -176,8 +176,8 @@ async def test_a_wanted_record_tiingo_files_as_no_mutual_fund_is_declined_once_a
     work = feed(tmp_path, recorder, funds=(Fund("VIGIX"),))
     await work.check()
     asked = work.status.fetches
-    await work.on_want(want("w-13", ["LCL-voo"], day="2026-10-08"))
-    await work.on_want(want("w-14", ["LCL-voo"], day="2026-10-08"))
+    await work.on_observations_wanted(want("w-13", ["LCL-voo"], day="2026-10-08"))
+    await work.on_observations_wanted(want("w-14", ["LCL-voo"], day="2026-10-08"))
     assert work.status.fetches == asked + 1
     assert [d.reason for d in recorder.on("DeclineWant")] == [ops.UNANSWERED_REASON_NOT_COVERED] * 2
     assert not work.status.read["LCL-voo"].served
@@ -188,7 +188,9 @@ async def test_a_nav_read_again_names_the_response_first_read(tmp_path: Path) ->
     await first.check()
     again = feed(tmp_path, at=AT + timedelta(hours=6))
     await again.check()
-    keys = [{p.meta.raw.key for p in w.plugin.on("RecordPrices")[0].prices} for w in (first, again)]
+    keys = [
+        {p.meta.raw.key for p in recorder(w).on("RecordPrices")[0].prices} for w in (first, again)
+    ]
     assert keys[0] == keys[1] and len(keys[0]) == 1
 
 
@@ -210,8 +212,8 @@ async def test_a_past_day_wanted_is_recorded_against_the_want(tmp_path: Path) ->
     work = feed(tmp_path)
     await work.check()
     vigix = work.status.funds["VIGIX"].instrument_id
-    await work.on_want(want("w-1", [vigix], day="2026-09-22"))
-    batch = work.plugin.on("RecordPrices")[-1]
+    await work.on_observations_wanted(want("w-1", [vigix], day="2026-09-22"))
+    batch = recorder(work).on("RecordPrices")[-1]
     assert batch.want_id == "w-1" and [p.meta.row_key for p in batch.prices] == ["VIGIX:2026-09-22"]
 
 
@@ -222,7 +224,7 @@ async def test_a_want_before_the_first_check(tmp_path: Path) -> None:
         lambda _: ops.ResolveIdentifierResult(found=True, instrument_id="LCL-VIGIX"),
     )
     work = feed(tmp_path, recorder)
-    await work.on_want(want("w-0", ["LCL-VIGIX"], day="2026-10-08"))
+    await work.on_observations_wanted(want("w-0", ["LCL-VIGIX"], day="2026-10-08"))
     assert recorder.on("RecordPrices")[-1].want_id == "w-0"
 
 
@@ -230,11 +232,13 @@ async def test_declined_not_covered_silent_and_beyond_history(tmp_path: Path) ->
     work = feed(tmp_path)
     await work.check()
     vigix = work.status.funds["VIGIX"].instrument_id
-    await work.on_want(want("w-2", ["LCL-elsewhere"], day="2026-10-08"))
-    await work.on_want(want("w-3", [vigix], day="2026-10-12"))
-    await work.on_want(want("w-4", [vigix], day="1990-01-02"))
-    await work.on_want(want("w-5", [vigix], day="2026-10-08", kinds=(ops.PRICE_KIND_CLOSE,)))
-    reasons = [(d.want_id, d.reason) for d in work.plugin.on("DeclineWant")]
+    await work.on_observations_wanted(want("w-2", ["LCL-elsewhere"], day="2026-10-08"))
+    await work.on_observations_wanted(want("w-3", [vigix], day="2026-10-12"))
+    await work.on_observations_wanted(want("w-4", [vigix], day="1990-01-02"))
+    await work.on_observations_wanted(
+        want("w-5", [vigix], day="2026-10-08", kinds=(ops.PRICE_KIND_CLOSE,))
+    )
+    reasons = [(d.want_id, d.reason) for d in recorder(work).on("DeclineWant")]
     assert reasons == [
         ("w-2", ops.UNANSWERED_REASON_NOT_COVERED),
         ("w-3", ops.UNANSWERED_REASON_SOURCE_SILENT),
@@ -247,9 +251,9 @@ async def test_a_standing_want_is_kept_until_withdrawn(tmp_path: Path) -> None:
     work = feed(tmp_path)
     await work.check()
     vigix = work.status.funds["VIGIX"].instrument_id
-    await work.on_want(want("w-6", [vigix], standing=True))
+    await work.on_observations_wanted(want("w-6", [vigix], standing=True))
     assert "w-6" in work.status.standing
-    await work.on_withdrawn(
+    await work.on_want_withdrawn(
         Heard(
             row="WantWithdrawn",
             message=ops.WantWithdrawnEvent(want_id="w-6", dataset="tiingo:daily"),
@@ -263,7 +267,7 @@ async def test_no_token_reads_nothing(tmp_path: Path) -> None:
     work.configure(Config(funds=(Fund("VIGIX"),), sample_data=False, missing=("tiingo_api_token",)))
     assert work.vendor is None and work.status.mode == "waiting"
     assert await work.check() is None
-    assert not work.plugin.on("RecordPrices")
+    assert not recorder(work).on("RecordPrices")
 
 
 async def test_a_refused_token_is_said_never_shown(tmp_path: Path) -> None:
@@ -294,14 +298,14 @@ async def test_every_resolve_names_its_as_of_and_no_currency_is_resolved(tmp_pat
     resolved here: a NAV names its dollars by code, for core to resolve to
     the platform master's currency, pulled, never a stub minted here."""
     work = feed(tmp_path)
-    held(work.plugin, {CUSTODIAN: CUSTODIANS})
+    held(recorder(work), {CUSTODIAN: CUSTODIANS})
     await work.check()
-    await work.on_want(want("w-vtsax", [CUSTODIAN], day="2026-10-08"))
+    await work.on_observations_wanted(want("w-vtsax", [CUSTODIAN], day="2026-10-08"))
     now = int(AT.timestamp() * 1_000_000) * 1000
-    resolves = [*work.plugin.on("ResolveIdentifier"), *work.plugin.on("ResolveInstrument")]
-    missing = list(work.plugin.on("ReportMissingInstrument"))
+    resolves = [*recorder(work).on("ResolveIdentifier"), *recorder(work).on("ResolveInstrument")]
+    missing = list(recorder(work).on("ReportMissingInstrument"))
     assert resolves and all(r.as_of_ns == now for r in [*resolves, *missing])
-    named = [i.scheme for r in work.plugin.on("ResolveIdentifier") for i in r.identifiers]
+    named = [i.scheme for r in recorder(work).on("ResolveIdentifier") for i in r.identifiers]
     assert "iso4217" not in named
-    prices = [p for r in work.plugin.on("RecordPrices") for p in r.prices]
+    prices = [p for r in recorder(work).on("RecordPrices") for p in r.prices]
     assert prices and all(p.price.currency_code == "USD" for p in prices)

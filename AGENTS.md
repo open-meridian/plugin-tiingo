@@ -1,7 +1,7 @@
 # meridian-tiingo
 
 Mutual funds' daily net asset values from Tiingo as an Open Meridian data
-plugin, in Python on the open-meridian SDK (0.32.2, contract v27). It runs
+plugin, in Python on the open-meridian SDK (0.35.2, contract v29). It runs
 beside a sidecar in a Meridian deployment and puts each listed fund's NAVs
 into the deployment's lake, end of day. What it may publish and subscribe to
 comes from its one role, `data`, declared in `pyproject.toml`, once a
@@ -18,6 +18,13 @@ deployment admin approves it. Its plan is meridian-design's
 - `src/tiingo/convert.py` makes each of a fund's days a `Price` of kind
   `nav`, in US dollars, for its business date in New York's day ending at
   16:00, from the JSON's text as a `Decimal`.
+- `src/tiingo/__main__.py` holds the data role's class, `Lake` (feed.py's
+  `Feed`, a `meridian.roles.data.Role`: open-meridian 0.35, each role one
+  class), registered with `meridian.run`, which serves the pages, delivers
+  the settings to `Lake.on_settings`, hands what the lake wants to
+  `on_observations_wanted` and `on_want_withdrawn`, sets the figures on the
+  heartbeat and runs `Lake.run`: the funds read every six hours, storage
+  tended daily, the licences read every minute.
 - `src/tiingo/feed.py` asks Tiingo what each listed ticker is (a mutual fund
   is filed under `NMFQS`; anything else is not served), resolves each fund
   (the record the Funds setting names, or Tiingo's symbol, W3.1) and reports

@@ -4,12 +4,13 @@ An [Open Meridian](https://open-meridian.com) plugin that puts mutual funds'
 daily net asset values from [Tiingo](https://www.tiingo.com) into a
 deployment's lake: each fund you list, its NAV for each business day, so a
 reporting plugin can value a fund no exchange prices, such as VIGIX. It holds
-the `data` role, a data plugin. This is release 0.8.0. How to set it up and
+the `data` role, a data plugin. This is release 0.9.0. How to set it up and
 use it is in [docs/](docs/README.md); how a plugin like it is built is
 documented at [open-meridian.dev](https://open-meridian.dev).
 
-It is built on the SDK it pins, `open-meridian==0.32.2`, which declares
-contract v27: the NAVs' delay is declared on the catalogue (from v27); its
+It is built on the SDK it pins, `open-meridian==0.35.2`, which declares
+contract v29: from 0.9.0 its work is one class for its role, `Lake`,
+registered with `meridian.run` (SDK 0.35); the NAVs' delay is declared on the catalogue (from v27); its
 whole declaration and docs/ are what a deployment shows on its Documentation
 tab (from v25); and each fund's ticker is mapped to its FIGIs through
 OpenFIGI. Its work is the lake prices the book (meridian-design
@@ -111,14 +112,18 @@ not presented, with why, as the suite lets it. Contract v27's bounded query
 of the lake is about trades, and the plugin records none (nor asks the lake
 anything). Its liveness case is about streams: Tiingo's NAVs are asked for,
 never streamed, so there is no heartbeat to record. Its feed-delay case is
-about latency, which core receives from contract v28 (ruling 518). So are contract v22's
+about publication times, and Tiingo states a NAV's business date and no
+moment it was published, so there is no age at the edge to measure: the
+dataset declares its delay instead. Contract v28's option chains, filings,
+holdings, corporate actions, ratings and derived series, and contract v29's
+pools' factors, are not presented, a fund's NAV being none. So are contract v22's
 calendar cases: the plugin records each NAV on the business date Tiingo
 states, and never reads a settlement calendar or asks for a settlement date;
 and contract v23's outcomes, a fund being no event contract. From 0.5.0 the
 dataset names the platform's US equity venues (NYSE markets) calendar, so the
 lake flags a NAV dated on a day it says is closed.
 
-**open-meridian 0.32.2 is on PyPI** and its base image on ghcr.io: the
+**open-meridian 0.35.2 is on PyPI** and its base image on ghcr.io: the
 runners install the pin from there. Locally the Makefile builds
 both from the sibling meridian-python checkout.
 

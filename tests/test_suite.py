@@ -75,7 +75,20 @@ NEVER = {
         "Tiingo's NAVs are asked for once a day, after midnight New York time, and never "
         "streamed: no heartbeat to record"
     ),
-    "latency": "core receives ReportLatency from contract v28, ruling 515",
+    # Contract v28 (ruling 602), and its feed delay (about publication
+    # times since 0.33.5).
+    "publication times": (
+        "Tiingo states a NAV's business date and no moment it was published: no age at the "
+        "edge to measure; the dataset declares its delay instead"
+    ),
+    "option chains": "mutual funds' NAVs only: no option chain",
+    "filings": "mutual funds' NAVs only: no filing, fact or filer",
+    "holdings": "mutual funds' NAVs only: Tiingo's end-of-day prices state no fund's holdings",
+    "corporate actions": "mutual funds' NAVs only: no dividend or other corporate action",
+    "ratings": "mutual funds' NAVs only: no rating",
+    "derived series": "records NAVs as published: derives no series",
+    # Contract v29.
+    "factors": "mutual funds' NAVs only: no pool's factor",
 }
 
 #: The cases about closes a NAV meets all the same (ruling 537): a price
@@ -105,7 +118,7 @@ def _resolving(recorder: Recorder, ambiguous: bool = False) -> None:
 
 def producers(tmp: Path) -> dict[str, Callable[[Recorder], Awaitable[None]]]:
     def work(recorder: Recorder) -> Feed:
-        feed = Feed(recorder, RawStore(tmp), now=lambda: AT)
+        feed = recorder.bind(Feed(RawStore(tmp), now=lambda: AT))
         feed.configure(Config(funds=(Fund("VIGIX"),), sample_data=True))
         return feed
 
@@ -122,7 +135,7 @@ def producers(tmp: Path) -> dict[str, Callable[[Recorder], Awaitable[None]]]:
             _resolving(recorder)
             feed = work(recorder)
             recorder.answer("ObservationsWanted", lambda _: message)
-            await recorder.receive(observations_wanted=feed.on_want)
+            await recorder.hear(feed)
 
         return produce
 
@@ -142,7 +155,7 @@ def producers(tmp: Path) -> dict[str, Callable[[Recorder], Awaitable[None]]]:
         feed = work(recorder)
         message = want("w-3", [CUSTODIAN], day="2026-10-08").message
         recorder.answer("ObservationsWanted", lambda _: message)
-        await recorder.receive(observations_wanted=feed.on_want)
+        await recorder.hear(feed)
 
     async def licences(recorder: Recorder) -> None:
         # On start, its own declared datasets' licences (contract v20).
@@ -153,7 +166,7 @@ def producers(tmp: Path) -> dict[str, Callable[[Recorder], Awaitable[None]]]:
             lambda _: ops.ListDatasetsResult(licences=[ops.DatasetLicence(dataset=DATASET)]),
         )
         feed = work(recorder)
-        await read_licences(recorder, feed)
+        await read_licences(feed)
         assert feed.status.licensed == {DATASET}
 
     async def withdrawn(recorder: Recorder) -> None:
@@ -162,7 +175,7 @@ def producers(tmp: Path) -> dict[str, Callable[[Recorder], Awaitable[None]]]:
         recorder.answer(
             "WantWithdrawn", lambda _: ops.WantWithdrawnEvent(want_id="w-standing", dataset=DATASET)
         )
-        await recorder.receive(want_withdrawn=feed.on_withdrawn)
+        await recorder.hear(feed)
 
     return {
         "an-exact-price": navs_read,
@@ -194,7 +207,7 @@ def test_a_nav_never_passes_through_a_float(tmp_path: Path) -> None:
 
     recorder = Recorder("tiingo")
     _resolving(recorder)
-    feed = Feed(recorder, RawStore(tmp_path), now=lambda: AT)
+    feed = recorder.bind(Feed(RawStore(tmp_path), now=lambda: AT))
     feed.configure(Config(funds=(Fund("VIGIX"),), sample_data=True))
     asyncio.run(feed.check())
     amounts = {

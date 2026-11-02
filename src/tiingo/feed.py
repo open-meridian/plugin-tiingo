@@ -57,10 +57,10 @@ import logging
 from collections.abc import Callable, Iterable, Sequence
 from dataclasses import dataclass, field
 from datetime import date, datetime, timedelta
-from typing import Any
 
 import meridian
 from meridian.plugin.v1 import operations_pb2 as ops
+from meridian.roles import data
 
 from .convert import NEW_YORK, Nav, navs, to_prices
 from .declared import DAILY
@@ -184,20 +184,18 @@ class Outcome:
         )
 
 
-class Feed:
+class Feed(data.Role):
     """The plugin's work, on its typed operations -- `plugin` is the
     connected `meridian.Plugin`, or the suite's `Recorder` in its tests --
     reading Tiingo, resolving, recording, answering wants."""
 
     def __init__(
         self,
-        plugin: Any,
         raw: RawStore,
         now: Callable[[], datetime] = utc_now,
         vendor: Tiingo | None = None,
         figi: OpenFigi | None = None,
     ) -> None:
-        self.plugin = plugin
         self.raw = raw
         self.now = now
         self.vendor = vendor
@@ -308,7 +306,7 @@ class Feed:
         identifier = ops.Identifier(scheme="symbol", value=fund.ticker, source=SOURCE)
         await self.map_figi(fund)
         stated = [identifier, *(fund.figis.identifiers() if fund.figis else [])]
-        found = await self.plugin.resolve_identifier(
+        found = await self.resolve_identifier(
             identifiers=stated,
             as_of_ns=_ns(self.now()),
             stated_asset_class="fund",
@@ -320,7 +318,7 @@ class Feed:
             return
         reason = found.miss_reason or ops.MISS_REASON_NOT_FOUND
         fund.miss = ops.MissReason.Name(reason).removeprefix("MISS_REASON_").lower()
-        await self.plugin.report_missing_instrument(
+        await self.report_missing_instrument(
             source=SOURCE,
             asset_class="fund",
             identifiers=stated,
@@ -352,7 +350,7 @@ class Feed:
         if not self.status.reads_instruments:
             return None
         try:
-            found: ops.ResolveInstrumentResult = await self.plugin.resolve_instrument(
+            found: ops.ResolveInstrumentResult = await self.resolve_instrument(
                 instrument_id=instrument_id, as_of_ns=_ns(self.now())
             )
         except meridian.NotGranted:
@@ -377,7 +375,7 @@ class Feed:
             return
         own = ops.Identifier(scheme="symbol", value=fund.ticker, source=SOURCE)
         given = ops.Identifier(scheme=given.scheme, value=given.value, source=given.source)
-        found = await self.plugin.resolve_identifier(
+        found = await self.resolve_identifier(
             identifiers=[own, given],
             as_of_ns=_ns(self.now()),
             stated_asset_class="fund",
@@ -389,7 +387,7 @@ class Feed:
         reason = ops.MISS_REASON_AMBIGUOUS
         if not found.found and found.miss_reason:
             reason = found.miss_reason
-        await self.plugin.report_missing_instrument(
+        await self.report_missing_instrument(
             source=SOURCE,
             asset_class="fund",
             identifiers=[own, given],
@@ -455,9 +453,7 @@ class Feed:
         prices = to_prices(held, fund.instrument_id, dataset=self.dataset, raw=refs)
         outcome = Outcome()
         for start in range(0, len(prices), BATCH):
-            done = await self.plugin.record_prices(
-                prices=prices[start : start + BATCH], want_id=want_id
-            )
+            done = await self.record_prices(prices=prices[start : start + BATCH], want_id=want_id)
             outcome = outcome + Outcome(done.recorded, done.restated, done.unchanged)
         latest = max(n.day for n in held).isoformat()
         fund.latest = max(fund.latest, latest)
@@ -531,15 +527,17 @@ class Feed:
     ) -> None:
         if not subjects:
             return
-        await self.plugin.decline_want(
+        await self.decline_want(
             want_id=want_id,
-            subjects=[ops.SubjectRef(entity_id=s) for s in subjects],
+            subjects=[meridian.SubjectRef(entity_id=s) for s in subjects],
             reason=reason,
         )
         declined[reason] = declined.get(reason, 0) + len(subjects)
         self.status.declined += len(subjects)
 
-    async def on_want(self, heard: meridian.Heard[ops.ObservationsWantedEvent]) -> None:
+    async def on_observations_wanted(
+        self, heard: meridian.Heard[ops.ObservationsWantedEvent]
+    ) -> None:
         """Record what the lake wants of the plugin's dataset, or decline it."""
         want = heard.message
         if want.dataset and want.dataset != self.dataset:
@@ -633,7 +631,7 @@ class Feed:
             dict(declined) or "none",
         )
 
-    async def on_withdrawn(self, heard: meridian.Heard[ops.WantWithdrawnEvent]) -> None:
+    async def on_want_withdrawn(self, heard: meridian.Heard[ops.WantWithdrawnEvent]) -> None:
         if heard.message.dataset and heard.message.dataset != self.dataset:
             return
         self.status.standing.pop(heard.message.want_id, None)

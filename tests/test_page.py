@@ -13,7 +13,7 @@ from tiingo import page as page_module
 from tiingo.page import CONNECTION, DATASETS, hold, pages
 from tiingo.settings import Config, Fund
 
-from conftest import CUSTODIAN, CUSTODIANS, feed, held, want
+from conftest import CUSTODIAN, CUSTODIANS, feed, held, recorder, want
 
 
 @pytest.fixture
@@ -23,8 +23,8 @@ def client(tmp_path: Path) -> PageClient:
     async def run() -> None:
         await work.check()
         vigix = work.status.funds["VIGIX"].instrument_id
-        await work.on_want(want("w-0922", [vigix], day="2026-09-22"))
-        await work.on_want(want("w-standing", [vigix], standing=True))
+        await work.on_observations_wanted(want("w-0922", [vigix], day="2026-09-22"))
+        await work.on_observations_wanted(want("w-standing", [vigix], standing=True))
 
     asyncio.run(run())
     hold(work)
@@ -60,11 +60,11 @@ def test_datasets_lists_each_fund_and_what_tiingo_says_it_is(client: PageClient)
 
 def test_datasets_lists_a_fund_read_from_the_record_a_want_named(tmp_path: Path) -> None:
     work = feed(tmp_path)
-    held(work.plugin, {CUSTODIAN: CUSTODIANS})
+    held(recorder(work), {CUSTODIAN: CUSTODIANS})
 
     async def run() -> None:
         await work.check()
-        await work.on_want(want("w-vtsax", [CUSTODIAN], day="2026-10-08"))
+        await work.on_observations_wanted(want("w-vtsax", [CUSTODIAN], day="2026-10-08"))
 
     asyncio.run(run())
     hold(work)
