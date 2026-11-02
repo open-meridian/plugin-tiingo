@@ -20,7 +20,8 @@ plugin records is unchanged.
   0.35.2 delivers the SDK's own settings beside the class's (each kind's
   window in `.values`), so the untyped declaration 0.35.1 needed is gone
   (`meridian plugin migrate --to 0.35.2`: `typed-settings-declared`); the
-  settings missing are read as `.missing`.
+  settings missing are read as `.missing`. A typed delivery gives a
+  table's rows as a tuple, which the Funds setting is now read from too.
 - **The suite's v28 and v29 cases** (ruling 602): its feed delay is about
   publication times, which Tiingo never states of a NAV (its dataset
   declares the delay); option chains, filings, holdings, corporate actions,
