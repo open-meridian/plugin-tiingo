@@ -22,17 +22,13 @@ from meridian.declaration import Declaration, Storage
 from .declared import DAILY_DATASET, RESPONSES_KIND
 from .page import TITLE, pages
 from .raw import MOST_WINDOW_DAYS
-from .settings import SETTINGS
+from .settings import DECLARED
 
 #: The port its pages are served on, on loopback, where its sidecar forwards.
 PORT = 8000
 
 DECLARATION = Declaration(
-    # The settings untyped, as `Declared.declared()` names them: open-meridian
-    # 0.35.1's `meridian.run` delivers a typed class without the SDK's own
-    # settings (the responses' window), which `RawStore.tend` reads. Drop
-    # after SDK 0.35.2, back to `settings=DECLARED`.
-    settings=SETTINGS,
+    settings=DECLARED,
     storage=Storage(retention_days=MOST_WINDOW_DAYS, kinds=[RESPONSES_KIND]),
     catalogue=[DAILY_DATASET],
     interface=meridian.Interface(port=PORT, title=TITLE, pages=pages),

@@ -66,7 +66,7 @@ class Lake(Feed):
         funds, read at once, and the responses' window, tended. `meridian.run`
         applies the first before anything is heard, and watches them again
         should their stream break."""
-        config = config_from(delivered.values, delivered.missing_required)
+        config = config_from(delivered.values, delivered.missing)
         self.config = config
         self.configure(config)
         self.wake.set()

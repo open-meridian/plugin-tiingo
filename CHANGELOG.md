@@ -2,7 +2,7 @@
 
 ## 0.9.0
 
-On open-meridian 0.35.1, contract v29 (rulings 1003, 1004, 1005, 1009 to
+On open-meridian 0.35.2, contract v29 (rulings 1003, 1004, 1005, 1009 to
 1029, 602), on core v29's harness; from 0.32.2, past contract v28. What the
 plugin records is unchanged.
 
@@ -16,16 +16,17 @@ plugin records is unchanged.
   the funds read every six hours or when the settings change, storage
   tended daily, the licences read every minute -- again after a backoff
   should it fail. The tasks it wired by hand are gone.
-- **The settings declared untyped for now**: open-meridian 0.35.1's
-  `meridian.run` delivers a typed settings class without the SDK's own
-  settings, the responses' window among them, which tending reads; the
-  declaration names `Declared.declared()` until 0.35.2.
+- **Its settings typed** (`@meridian.settings`, the SDK's form): open-meridian
+  0.35.2 delivers the SDK's own settings beside the class's (each kind's
+  window in `.values`), so the untyped declaration 0.35.1 needed is gone
+  (`meridian plugin migrate --to 0.35.2`: `typed-settings-declared`); the
+  settings missing are read as `.missing`.
 - **The suite's v28 and v29 cases** (ruling 602): its feed delay is about
   publication times, which Tiingo never states of a NAV (its dataset
   declares the delay); option chains, filings, holdings, corporate actions,
   ratings, derived series and pools' factors are not presented, a fund's
   NAV being none of them.
-- **`meridian plugin migrate --to 0.35.1`** moved the pins and rewrote
+- **`meridian plugin migrate --to 0.35.1`** (then `--to 0.35.2`, only the pins) moved the pins and rewrote
   `ops.SubjectRef` to `meridian.SubjectRef`, the feed's construction and
   handlers (the connection no longer given to it; `on_want` and
   `on_withdrawn` as `on_observations_wanted` and `on_want_withdrawn`) and
@@ -33,9 +34,9 @@ plugin records is unchanged.
   tests' recorder (`Recorder.bind`, `Recorder.hear`), the suite's cases and
   the e2e's reader (two role classes -- `custody`, `reporting` -- on
   `meridian.run_async`) were moved by hand.
-- **The pins:** open-meridian 0.35.1 and plugin-python:0.35.1 by tag and
-  digest (`sha256:cdc92bc9...71a9b614`); core's runtime and harness
-  `1ae36f0` (merged as 3f99222, chart 0.1.339) by digest; meridian 0.1.56
+- **The pins:** open-meridian 0.35.2 and plugin-python:0.35.2 by tag and
+  digest (`sha256:2e2dd7ad...c988bea28`); core's runtime and harness
+  `1ae36f0` (merged as 3f99222, chart 0.1.339) by digest; meridian 0.1.57
   in check.yaml.
 
 ## 0.8.0
