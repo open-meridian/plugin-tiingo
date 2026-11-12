@@ -181,7 +181,7 @@ def datasets_read(status: Status, feed: Feed | None) -> records.DatasetsRead:
             data="mutual funds' NAVs",
             arrives=", ".join(mode_name(m) for m in entry.modes),
             day="New York's, to 16:00",
-            default_terms="kept; personal use",
+            default_terms=DAILY_DATASET.terms_and_pricing,
             entitled_at_vendor=at_vendor,
             recorded=status.recorded,
             declined=status.declined,
@@ -314,11 +314,11 @@ async def connection(request: meridian.Request) -> meridian.Response:
     name="read_datasets",
     description=(
         "What this plugin serves the lake, as every data plugin's Datasets answers it: its "
-        "one dataset as the catalogue declares it (mutual funds' daily NAVs, New York's "
-        "day ending at 16:00, one person's terms), whether a deployment admin has licensed "
-        "it, what it recorded and declined; the standing wants it keeps current and the "
-        "wants it answered; whether it may read an instrument's record. Then Tiingo's own: "
-        "each fund listed with what Tiingo says it is, whether it is served, the "
+        "one dataset as the catalogue declares it (mutual funds' daily NAVs, New York's day "
+        "ending at 16:00, Tiingo's terms and pricing in words), whether a deployment admin "
+        "has licensed it, what it recorded and declined; the standing wants it keeps current "
+        "and the wants it answered; whether it may read an instrument's record. Then Tiingo's"
+        " own: each fund listed with what Tiingo says it is, whether it is served, the "
         f"deployment's record for it or why there is none, up to {MOST_FUNDS}. No NAV."
     ),
 )

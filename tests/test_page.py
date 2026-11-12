@@ -50,7 +50,7 @@ def test_datasets_lists_each_fund_and_what_tiingo_says_it_is(client: PageClient)
     # The data role's sections, in its order, then Tiingo's Funds.
     assert text.index("<h2>Served</h2>") < text.index("<h2>Wants</h2>")
     assert text.index("<h2>Subjects</h2>") < text.index("<h2>Funds</h2>")
-    assert "tiingo:daily" in text and "kept; personal use" in text
+    assert "tiingo:daily" in text and "internal and personal use" in text
     assert "Not licensed yet" in text
     assert 'data-ticker="VIGIX" data-served="yes"' in text
     assert 'data-ticker="VOO" data-served="no"' in text and "not a mutual fund (NYSE)" in text

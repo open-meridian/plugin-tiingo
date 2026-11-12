@@ -23,10 +23,18 @@ def test_the_navs_delay_is_eight_hours_from_the_days_end_to_midnight() -> None:
     assert DAILY_DATASET._to_json()["declared_delay_ns"] == 8 * 3_600 * 10**9
 
 
-def test_tiingos_terms_are_one_persons() -> None:
-    licence = DAILY_DATASET.licence_default
-    assert licence is not None and licence.personal_use
-    assert licence.kept and licence.derived_use and licence.display
+def test_tiingos_terms_are_described_in_words() -> None:
+    # Contract 30 (ruling 1032): Tiingo's terms in words, never a licence.
+    terms = DAILY_DATASET.terms_and_pricing
+    assert "internal and personal use" in terms and "no redistribution" in terms
+    assert len(terms) <= 2000
+
+
+def test_a_gap_is_asked_for_again() -> None:
+    # Contract 30: Tiingo serves each fund's history, so a gap is backfilled;
+    # a NAV is struck once a day, in no trading session.
+    assert DAILY_DATASET.gap_recovery == "backfill"
+    assert not DAILY_DATASET.sessions_calendar_id
 
 
 def test_the_token_is_declared_secret() -> None:

@@ -21,8 +21,8 @@ sends Tiingo's API nowhere, and sample data reads invented responses.
    (contract v20), the token said to be unset and
    never shown; and core's `dashboard__list_datasets` lists `tiingo:daily` as
    the catalogue declares it: push and pull, daily, New York's day ending at
-   16:00, one person's terms.
-4. Licensed (one person's terms) and the reader entitled (the admin was
+   16:00, Tiingo's terms and pricing in words (contract 30).
+4. Licensed (one person's terms, the admin's choice) and the reader entitled (the admin was
    granted read on it at step 2, to open its page).
 5. Read back: VIGIX's NAV on 8 October 2026, 245.55 in dollars' cash
    instrument, kind nav, version 1.
@@ -192,8 +192,8 @@ def run():
     entry = held.get("catalogue_entry", {})
     must(entry.get("modes") == ["push", "pull"] and entry.get("day_time_zone") == "America/New_York"
          and entry.get("day_end_minute") == 960 and entry.get("cadence") == 86400
-         and held.get("licence", {}).get("personal_use") is True,
-         f"step 3, core lists the catalogue as declared: {held}")
+         and "internal and personal use" in json.dumps(entry.get("terms_and_pricing", "")),
+         f"step 3, core lists the catalogue as declared, Tiingo's terms in words: {held}")
 
     # 4. Licensed and entitled.
     runner("licence", DATASET, "kept=true", "retention_days=0", "derived_use=true", "display=true",
@@ -259,7 +259,7 @@ def run():
           f"said with none, nothing recorded; sample data with VIGIX (the custodian's INS- record), VOO and NOSUCH "
           f"listed, VIGIX alone served (VOO an ETF, NOSUCH not found); read_connection and read_datasets answering "
           f"what the pages show, the token said unset and never shown; core listing {DATASET} as "
-          f"declared, one person's terms; licensed and entitled; VIGIX's NAV on 8 October read back "
+          f"declared, Tiingo's terms in words; licensed and entitled; VIGIX's NAV on 8 October read back "
           f"at 245.55 in dollars, kind nav; 22 September wanted and recorded, 12 October declined "
           f"source silent; VTSAX, known only by a custodian's CUSIP, FIGI and symbol, read from its "
           f"record and its NAV recorded against the want (147.4); `store lake` as e2e/expected.lake ({rows} rows); and a new container "

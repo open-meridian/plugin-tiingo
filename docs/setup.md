@@ -37,8 +37,10 @@ as read from its record. Funds and these count together toward the plugin's
 
 On the deployment's **Data sources** page (deployment admins):
 
-1. **License `<instance>:daily`.** The catalogue's default is one person's
-   terms, as Tiingo's free plan is. Confirm it, or set your own, with a note.
+1. **License `<instance>:daily`.** Its row says Tiingo's terms in words: the
+   free and Power plans are for internal and personal use. Set the licence
+   your agreement with Tiingo gives -- one person's, on those plans -- with a
+   note.
 2. **Entitle** your reporting plugin to it.
 3. **Priority** for NAVs, where another dataset also gives them.
 

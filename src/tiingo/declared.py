@@ -24,20 +24,21 @@ of day:
   it from midnight ("Mutual Fund NAVs are available after 12 AM EST",
   Tiingo's end-of-day documentation), so the lake judges a NAV's staleness
   against the delay plus its ceiling, never as late from 16:00;
-- the licence Tiingo's free and Power plans give, as the plugin's builders
-  read them (README, "The terms"): for internal and personal use, no
-  redistribution -- so one person's terms (`personal_use`), kept, used to
-  value that person's own book and shown to them. A deployment's licence
-  confirms or replaces it on the Data sources page, which warns when more
-  than one person may read it; the plugin says nothing of whether a
-  deployment meets Tiingo's terms.
+- its terms and pricing in plain words (contract 30, ruling 1032;
+  `terms_and_pricing`), as the plugin's builders read Tiingo's (README,
+  "The terms"): the free and Power plans for internal and personal use, no
+  redistribution, and the free plan's limits. Never a licence: the
+  deployment admin's licence on the Data sources page is the one enforced,
+  and the plugin says nothing of whether a deployment meets Tiingo's terms;
+- a gap recovered by `backfill` (contract 30, `gap_recovery`): Tiingo serves
+  each fund's history, so the lake asks for the days again.
 
 **Storage:** Tiingo's responses (raw.py), archivable, two years by default.
 """
 
 from __future__ import annotations
 
-from meridian import DatasetDeclaration, DatasetLicence
+from meridian import DatasetDeclaration
 from meridian.declaration import RecordKind
 from meridian.plugin.v1 import operations_pb2 as ops
 
@@ -52,6 +53,16 @@ VENDOR = "Tiingo"
 #: the days US equity markets are open, so the lake flags a NAV dated on a
 #: closed day.
 US_EQUITY_CALENDAR = "CAL-01M4VF0F4XGP3RATCCSKDPZSBP"
+#: Tiingo's terms and pricing in plain words (contract 30, ruling 1032), as
+#: the plugin's builders read them on tiingo.com.
+TERMS = (
+    "Tiingo collects mutual funds' net asset values and serves them through its API "
+    "under the account holder's own agreement. Its free and Power plans are for internal "
+    "and personal use, with no redistribution; a firm's use or redistribution needs "
+    "Tiingo's commercial terms. The free plan allows 50 requests an hour, 1,000 a day and "
+    "500 symbols a month; Power and commercial plans are paid, at the prices on "
+    "tiingo.com. NAVs arrive after midnight New York time."
+)
 #: A day, in seconds.
 CADENCE = 86_400
 #: How far behind the day's end Tiingo serves a fund's NAV: from 16:00 New
@@ -64,7 +75,8 @@ DAILY_DATASET = DatasetDeclaration(
     data_types=["meridian.v1.Price"],
     modes=["push", "pull"],
     cadence=CADENCE,
-    licence_default=DatasetLicence(kept=True, derived_use=True, display=True, personal_use=True),
+    terms_and_pricing=TERMS,
+    gap_recovery="backfill",
     day_time_zone=DAY_TIME_ZONE,
     day_end_minute=DAY_END_MINUTE,
     calendar_id=US_EQUITY_CALENDAR,
