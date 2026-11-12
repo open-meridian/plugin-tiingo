@@ -1,5 +1,31 @@
 # Changelog
 
+## 0.10.0
+
+On open-meridian 0.36.0, contract 30, on core aae501d's harness (chart
+0.1.538); `meridian` 0.1.60 in the check. What the plugin records is
+unchanged.
+
+- **Tiingo's terms and pricing in words** (ruling 1032): the dataset's
+  `licence_default` (one person's terms) is gone, and `terms_and_pricing`
+  says what the plugin's builders read on tiingo.com -- the free and Power
+  plans for internal and personal use, no redistribution, the free plan's
+  limits, paid plans at Tiingo's prices -- shown on Data sources and in the
+  Datasets page's row details (was "kept; personal use"). The licence a
+  deployment admin sets is the one enforced; the plugin states none.
+- **A gap recovered by backfill** (`gap_recovery`): Tiingo serves each
+  fund's history, so the lake asks for the days again. No
+  `sessions_calendar_id`: a NAV is struck once a day, in no trading session.
+- **Row keys checked against the lake's rule 5** (ruled 2026-11-12): a NAV
+  is keyed by the fund's ticker and its business date (`VIGIX:2026-10-09`),
+  valid over that day; a day pushed again (every six hours) or pulled for a
+  want restates it over the same day and the same fund. A ticker whose
+  instrument a person changes on the Funds setting would restate its days
+  under another first subject; the list of such cases goes to step 3d.
+- `meridian plugin migrate --to 0.36.0` moved the pins (the base by digest,
+  `meridian` 0.1.60) and wrote the licence as words, rewritten by hand.
+- Core's runtime and harness images at `aae501d`, by digest.
+
 ## 0.9.0
 
 On open-meridian 0.35.2, contract v29 (rulings 1003, 1004, 1005, 1009 to
