@@ -8,7 +8,7 @@ the `data` role, a data plugin. This is release 0.10.0. How to set it up and
 use it is in [docs/](docs/README.md); how a plugin like it is built is
 documented at [open-meridian.dev](https://open-meridian.dev).
 
-It is built on the SDK it pins, `open-meridian==0.37.0`, which declares
+It is built on the SDK it pins, `open-meridian==0.37.1`, which declares
 contract 30: from 0.10.0 its dataset describes Tiingo's terms and pricing in
 words and declares a gap recovered by backfill; from 0.9.0 its work is one
 class for its role, `Lake`,
